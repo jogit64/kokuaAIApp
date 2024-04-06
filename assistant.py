@@ -48,6 +48,9 @@ def ask_question():
     
     # Récupère la réponse de l'API
     response_chatgpt = chat_completion.choices[0].message.content
+
+    response_html = markdown2.markdown(response_chatgpt)
+
     
     # Ajoute la réponse à l'historique des messages de la session
     message_history.append({"role": "assistant", "content": response_chatgpt})
@@ -59,7 +62,8 @@ def ask_question():
     session.modified = True
     
     # return render_template('index.html', messages=message_history)
-    return jsonify({"response": response_chatgpt})
+    # return jsonify({"response": response_chatgpt})
+    return jsonify({"response": response_html})
 
 if __name__ == '__main__':
     app.run(debug=True)
