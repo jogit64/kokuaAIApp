@@ -9,7 +9,8 @@ from flask_cors import CORS
 
 app = Flask(__name__)
 
-CORS(app, supports_credentials=True, origins=['https://www.kokua.fr/'])
+CORS(app, supports_credentials=True, origins=['https://kokua.fr', 'https://www.kokua.fr'])
+
 
 app.secret_key = 'assistant-ai-1a-urrugne-64122'  # Définissez une clé secrète pour les sessions
 
