@@ -45,22 +45,22 @@ def home():
 def ask_question():
     question = request.form['question']
     message_history = session.get('message_history', [])
+    
+    # Ajoute votre question à l'historique de messages
     message_history.append({"role": "user", "content": question})
     
-    # Intégration des consignes dans la requête
-    prompt_text = f"{chatgpt_guidelines}\n\nQuestion: {question}\n\nRéponse:"
-    
-    chat_completion = client.chat.completions.create(
-        messages=message_history,
+    # Préparez votre requête avec l'historique des messages pour maintenir le contexte
+    chat_completion = client.ChatCompletion.create(
         model="gpt-3.5-turbo",
-        temperature=0.0,  # Réduit la créativité
+        messages=message_history,
+        temperature=0.1,  # Ajustez ce paramètre selon vos besoins
         max_tokens=1024,  # Limite la longueur de la réponse
-        prompt=prompt_text  # Inclut les consignes et la question dans le prompt
     )
     
-    response_chatgpt = chat_completion.choices[0].message.content
+    response_chatgpt = chat_completion.choices[0].message['content']
     response_html = markdown2.markdown(response_chatgpt)
     
+    # Ajoute la réponse à l'historique des messages
     message_history.append({"role": "assistant", "content": response_chatgpt})
     session['message_history'] = message_history
     session.modified = True
