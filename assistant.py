@@ -3,7 +3,6 @@ from openai import OpenAI
 import os
 from flask_cors import CORS
 import markdown2
-from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 CORS(app, supports_credentials=True, origins=['https://kokua.fr', 'https://www.kokua.fr'])
@@ -20,44 +19,36 @@ def home():
 
 @app.route('/ask', methods=['POST'])
 def ask_question():
-    # Le reste de votre fonction ask_question reste inchangé
-    ...
+    question = request.form['question']
+    message_history = session.get('message_history', [])
 
-@app.route('/ask_file', methods=['POST'])
-def ask_file():
-    file = request.files['file']
-    if file:
-        filename = secure_filename(file.filename)
-        file_path = os.path.join('temp_directory', filename)  # Assurez-vous que ce répertoire existe
-        file.save(file_path)
-        
-        # Lire le contenu du fichier
-        with open(file_path, 'r', encoding='utf-8') as file_content:
-            file_text = file_content.read()
-        
-        # Envoyer le contenu du fichier à GPT pour analyse
-        instructions = """
-        # Analyse et Traitement d’Entretiens 
-        ## Contexte: Expertise CHSCT et CSE
-        ...
-        ## Analyse et traitement: Transformer les notes brutes en un compte-rendu structuré et clair, sans ajouter d'interprétations ou de créativité.
-        """
-        response = client.chat.completions.create(
-            prompt=instructions + "\n\n" + file_text,  # Ajoutez le contenu du fichier après les instructions
-            model="text-davinci-003",  # Assurez-vous de sélectionner le bon modèle
-            temperature=0.5,
-            max_tokens=1024,  # Ajustez en fonction de la taille de sortie désirée
-        )
-        
-        response_text = response.choices[0].text.strip()
-        response_html = markdown2.markdown(response_text)
-        
-        # Supprime le fichier après traitement
-        os.remove(file_path)
-        
-        return jsonify({"response": response_html})
-        
-    return jsonify({"error": "Aucun fichier reçu"}), 400
+    # Instructions spécifiques pour l'analyse et le traitement
+    instructions = """
+    # Analyse et Traitement d’Entretiens 
+    ## Contexte: Expertise CHSCT et CSE
+    ## Connaissances: Les rapports d’expertise CHSCT et CSE réalisés au profit des élus représentants du personnel. Les normes de l'INRS et de l'ANACT.
+    ## Objectif: Mise au propre de notes, objectif exhaustivité.
+    ## Analyse et traitement: Transformer les notes brutes en un compte-rendu structuré et clair, sans ajouter d'interprétations ou de créativité.
+    """
+    # Ajoute les instructions et la nouvelle question à l'historique des messages
+    message_history.append({"role": "system", "content": instructions})
+    message_history.append({"role": "user", "content": question})
+
+    chat_completion = client.chat.completions.create(
+        messages=message_history,
+        model="gpt-3.5-turbo",
+    )
+
+    response_chatgpt = chat_completion.choices[0].message.content
+    response_html = markdown2.markdown(response_chatgpt)
+    message_history.append({"role": "assistant", "content": response_chatgpt})
+    session['message_history'] = message_history
+    session.modified = True
+
+    return jsonify({"response": response_html})
+
+
+
 
 if __name__ == '__main__':
     app.run(debug=True)
