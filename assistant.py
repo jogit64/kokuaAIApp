@@ -25,44 +25,46 @@ app.config['SESSION_COOKIE_SAMESITE'] = 'None'
 
 client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
+
+# Consignes détaillées pour guider les réponses de ChatGPT
+chatgpt_guidelines = """
+## Analyse et Traitement d’Entretiens
+### Contexte: Expertise CHSCT et CSE
+### Connaissances requises: Rapports d’expertise CHSCT et CSE, normes de l'INRS et de l'ANACT
+### Objectif: Mise au propre de notes sur les conditions de travail et la prévention des risques professionnels, avec exhaustivité sans ajout d'interprétations ou de créativité.
+### Instructions: Transformer les notes brutes en compte-rendu structuré, clair et exhaustif. Récapitulatif sous forme de bullet points des vigilances pour la prévention des risques professionnels. Identifier les personnes pour s'entretenir et les points à aborder.
+""".strip()
+
+
 @app.route('/')
 def home():
-    session['message_history'] = []  # Réinitialise l'historique pour chaque nouvelle session
+    session['message_history'] = []
     return render_template('index.html')
 
 @app.route('/ask', methods=['POST'])
 def ask_question():
     question = request.form['question']
-    
-    # Récupère l'historique des messages de la session actuelle
     message_history = session.get('message_history', [])
-    
-    # Ajoute la nouvelle question à l'historique des messages de la session
     message_history.append({"role": "user", "content": question})
     
-    # Envoie la requête avec l'historique des messages de la session
+    # Intégration des consignes dans la requête
+    prompt_text = f"{chatgpt_guidelines}\n\nQuestion: {question}\n\nRéponse:"
+    
     chat_completion = client.chat.completions.create(
         messages=message_history,
         model="gpt-3.5-turbo",
+        temperature=0.0,  # Réduit la créativité
+        max_tokens=1024,  # Limite la longueur de la réponse
+        prompt=prompt_text  # Inclut les consignes et la question dans le prompt
     )
     
-    # Récupère la réponse de l'API
     response_chatgpt = chat_completion.choices[0].message.content
-
     response_html = markdown2.markdown(response_chatgpt)
-
     
-    # Ajoute la réponse à l'historique des messages de la session
     message_history.append({"role": "assistant", "content": response_chatgpt})
-    
-    # Sauvegarde l'historique mis à jour dans la session
     session['message_history'] = message_history
-
-     # Indique explicitement que la session a été modifiée
     session.modified = True
     
-    # return render_template('index.html', messages=message_history)
-    # return jsonify({"response": response_chatgpt})
     return jsonify({"response": response_html})
 
 if __name__ == '__main__':
