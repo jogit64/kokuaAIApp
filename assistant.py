@@ -19,8 +19,8 @@ def home():
 
 @app.route('/ask', methods=['POST'])
 def ask_question():
-    question = request.form['question']
-    message_history = session.get('message_history', [])
+    question = request.form.get('question')
+    uploaded_file = request.files.get('file')
 
     # Instructions spécifiques pour l'analyse et le traitement
     instructions = """
@@ -30,9 +30,16 @@ def ask_question():
     ## Objectif: Mise au propre de notes, objectif exhaustivité.
     ## Analyse et traitement: Transformer les notes brutes en un compte-rendu structuré et clair, sans ajouter d'interprétations ou de créativité.
     """
-    # Ajoute les instructions et la nouvelle question à l'historique des messages
+
+    message_history = session.get('message_history', [])
     message_history.append({"role": "system", "content": instructions})
     message_history.append({"role": "user", "content": question})
+
+    if uploaded_file:
+        # Lire le contenu du fichier
+        file_content = uploaded_file.read().decode('utf-8')
+        message_history.append({"role": "user", "content": "Uploaded File"})
+        message_history.append({"role": "user", "content": file_content})
 
     chat_completion = client.chat.completions.create(
         messages=message_history,
@@ -46,9 +53,6 @@ def ask_question():
     session.modified = True
 
     return jsonify({"response": response_html})
-
-
-
 
 if __name__ == '__main__':
     app.run(debug=True)
