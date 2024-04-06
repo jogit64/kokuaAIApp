@@ -8,24 +8,11 @@ from flask_cors import CORS
 
 
 app = Flask(__name__)
-# CORS(app, supports_credentials=True, origins=['https://www.johannr.fr/'])
+
 CORS(app, supports_credentials=True, origins=['https://www.kokua.fr/'])
 
-# CORS(app, resources={r"/ask*": {"origins": "https://www.johannr.fr"}})
-# CORS(app, resources={r"/ask": {"origins": "https://www.johannr.fr"}})
-# CORS(app, supports_credentials=True, origins='*')
-
-# CORS(app)
 app.secret_key = 'assistant-ai-1a-urrugne-64122'  # Définissez une clé secrète pour les sessions
 
-
-
-@app.after_request
-def after_request_func(response):
-    response.headers.add('Access-Control-Allow-Origin', '*')
-    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
-    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
-    return response
 
 
 
