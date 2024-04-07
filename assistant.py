@@ -28,7 +28,7 @@ app.config['SESSION_COOKIE_SAMESITE'] = 'None'
 
 class Conversation(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    session_id = db.Column(db.String(256), unique=True, nullable=True)  # Remarquez nullable=True
+    session_id = db.Column(db.Text, unique=True, nullable=False)
     messages = db.relationship('Message', backref='conversation', lazy=True)
 
 
