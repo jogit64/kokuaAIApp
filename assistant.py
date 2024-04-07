@@ -11,9 +11,9 @@ from flask_migrate import Migrate
 
 app = Flask(__name__)
 
-# app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL').replace("://", "ql://", 1) # Remplacez pour corriger l'URL pour PostgreSQL
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL').replace("://", "ql://", 1) # Remplacez pour corriger l'URL pour PostgreSQL
 # Exemple de configuration temporaire pour la génération des migrations
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///temp.db'
+# app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///temp.db'
 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
