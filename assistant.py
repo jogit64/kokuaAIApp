@@ -47,7 +47,7 @@ def home():
 
 @app.route('/ask', methods=['POST'])
 def ask_question():
-
+    session_cookie_name = app.config['SESSION_COOKIE_NAME']
     session_id = request.cookies.get(app.session_cookie_name)
     if not session_id:
         # Si aucun ID de session n'existe, il s'agit d'une nouvelle session utilisateur.
@@ -68,9 +68,11 @@ def ask_question():
     uploaded_file = request.files.get('file')
 
     # Créez une nouvelle conversation
-    new_conversation = Conversation()
-    db.session.add(new_conversation)
-    db.session.commit()
+    # new_conversation = Conversation()
+    # db.session.add(new_conversation)
+    # db.session.commit()
+
+
 
     instructions_content = """
     # Analyse et Traitement d’Entretiens 
