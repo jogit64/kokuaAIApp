@@ -81,12 +81,12 @@ def ask_question():
     ## Objectif: Mise au propre de notes, objectif exhaustivité.
     ## Analyse et traitement: Transformer les notes brutes en un compte-rendu structuré et clair, sans ajouter d'interprétations ou de créativité.
     """
-    instructions_message = Message(conversation_id=new_conversation.id, role="system", content=instructions_content)
+    instructions_message = Message(conversation_id=conversation.id, role="system", content=instructions_content)
     db.session.add(instructions_message)
 
     if question:
-        question_message = Message(conversation_id=new_conversation.id, role="user", content=question)
-        db.session.add(question_message)
+     question_message = Message(conversation_id=conversation.id, role="user", content=question)
+     db.session.add(question_message)
 
     if uploaded_file and uploaded_file.filename:
         try:
