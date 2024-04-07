@@ -28,6 +28,7 @@ app.config['SESSION_COOKIE_SAMESITE'] = 'None'
 
 class Conversation(db.Model):
     id = db.Column(db.Integer, primary_key=True)
+    session_id = db.Column(db.String(256), unique=True, nullable=False)
     messages = db.relationship('Message', backref='conversation', lazy=True)
 
 class Message(db.Model):
@@ -46,6 +47,23 @@ def home():
 
 @app.route('/ask', methods=['POST'])
 def ask_question():
+
+    session_id = request.cookies.get(app.session_cookie_name)
+    if not session_id:
+        # Si aucun ID de session n'existe, il s'agit d'une nouvelle session utilisateur.
+        # Vous pouvez choisir de gérer ce cas comme vous le souhaitez.
+        return jsonify({"error": "Session non trouvée."}), 400
+    
+     # Vérifiez si une conversation existe pour cet ID de session.
+    conversation = Conversation.query.filter_by(session_id=session_id).first()
+
+
+    if not conversation:
+        # Si aucune conversation n'existe pour cet ID de session, créez-en une nouvelle.
+        conversation = Conversation(session_id=session_id)
+        db.session.add(conversation)
+        db.session.commit()
+
     question = request.form.get('question')
     uploaded_file = request.files.get('file')
 
