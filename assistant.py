@@ -3,6 +3,7 @@ from openai import OpenAI
 import os
 from flask_cors import CORS
 import markdown2
+from docx import Document
 
 app = Flask(__name__)
 CORS(app, supports_credentials=True, origins=['https://kokua.fr', 'https://www.kokua.fr'])
@@ -16,6 +17,17 @@ client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 def home():
     session['message_history'] = []  # Réinitialise l'historique pour chaque nouvelle session
     return render_template('index.html')
+
+from flask import Flask, request, jsonify, session
+from docx import Document
+import io
+from openai import OpenAI
+import markdown2
+import os
+
+app = Flask(__name__)
+# Configuration de Flask et OpenAI ici...
+client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
 @app.route('/ask', methods=['POST'])
 def ask_question():
@@ -33,11 +45,20 @@ def ask_question():
 
     message_history = session.get('message_history', [])
     message_history.append({"role": "system", "content": instructions})
-    message_history.append({"role": "user", "content": question})
+    if question:
+        message_history.append({"role": "user", "content": question})
 
     if uploaded_file:
-        # Lire le contenu du fichier
-        file_content = uploaded_file.read().decode('utf-8')
+        file_content = ""
+        # Déterminer le type de fichier et le lire en conséquence
+        if uploaded_file.filename.endswith('.docx'):
+            # Lire le fichier .docx
+            document = Document(io.BytesIO(uploaded_file.read()))
+            file_content = "\n".join([paragraph.text for paragraph in document.paragraphs])
+        else:
+            # Traitement simplifié pour les autres types de fichiers
+            file_content = uploaded_file.read().decode('utf-8')
+
         message_history.append({"role": "user", "content": "Uploaded File"})
         message_history.append({"role": "user", "content": file_content})
 
@@ -53,6 +74,10 @@ def ask_question():
     session.modified = True
 
     return jsonify({"response": response_html})
+
+if __name__ == '__main__':
+    app.run(debug=True)
+
 
 if __name__ == '__main__':
     app.run(debug=True)
