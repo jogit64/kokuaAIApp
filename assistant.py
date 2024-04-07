@@ -63,7 +63,7 @@ def ask_question():
         message_history.append({"role": "user", "content": file_content})
 
     chat_completion = client.chat.completions.create(
-        messages=message_history,
+        messages=message_history, 
         model="gpt-3.5-turbo",
     )
 
