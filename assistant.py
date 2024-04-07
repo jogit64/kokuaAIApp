@@ -18,16 +18,7 @@ def home():
     session['message_history'] = []  # Réinitialise l'historique pour chaque nouvelle session
     return render_template('index.html')
 
-from flask import Flask, request, jsonify, session
-from docx import Document
-import io
-from openai import OpenAI
-import markdown2
-import os
 
-app = Flask(__name__)
-# Configuration de Flask et OpenAI ici...
-client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
 @app.route('/ask', methods=['POST'])
 def ask_question():
