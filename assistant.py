@@ -48,16 +48,24 @@ def ask_question():
     if question:
         message_history.append({"role": "user", "content": question})
 
-    if uploaded_file:
-        file_content = ""
+    iif uploaded_file:
+    file_content = ""
+    try:
         # Déterminer le type de fichier et le lire en conséquence
         if uploaded_file.filename.endswith('.docx'):
-            # Lire le fichier .docx
+            # Tente de lire le fichier .docx
             document = Document(io.BytesIO(uploaded_file.read()))
             file_content = "\n".join([paragraph.text for paragraph in document.paragraphs])
         else:
             # Traitement simplifié pour les autres types de fichiers
             file_content = uploaded_file.read().decode('utf-8')
+    except Exception as e:
+        # Log l'erreur ou renvoie une réponse appropriée
+        app.logger.error(f"Erreur lors du traitement du fichier : {e}")
+        # Vous pouvez choisir de renvoyer une erreur ou simplement ignorer le fichier et continuer
+        # Par exemple, renvoyer une réponse d'erreur :
+        return jsonify({"error": "Le traitement du fichier a échoué.", "details": str(e)}), 400
+
 
         message_history.append({"role": "user", "content": "Uploaded File"})
         message_history.append({"role": "user", "content": file_content})
