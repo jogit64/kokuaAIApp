@@ -40,7 +40,7 @@ def ask_question():
         message_history.append({"role": "user", "content": question})
 
     if uploaded_file:
-    file_content = ""
+        file_content = ""
     try:
         # Déterminer le type de fichier et le lire en conséquence
         if uploaded_file.filename.endswith('.docx'):
