@@ -53,13 +53,10 @@ def ask_question():
     except Exception as e:
         # Log l'erreur ou renvoie une réponse appropriée
         app.logger.error(f"Erreur lors du traitement du fichier : {e}")
-        # Vous pouvez choisir de renvoyer une erreur ou simplement ignorer le fichier et continuer
-        # Par exemple, renvoyer une réponse d'erreur :
         return jsonify({"error": "Le traitement du fichier a échoué.", "details": str(e)}), 400
 
-
-        message_history.append({"role": "user", "content": "Uploaded File"})
-        message_history.append({"role": "user", "content": file_content})
+    message_history.append({"role": "user", "content": "Uploaded File"})
+    message_history.append({"role": "user", "content": file_content})
 
     chat_completion = client.chat.completions.create(
         messages=message_history, 
