@@ -48,7 +48,8 @@ def home():
 @app.route('/ask', methods=['POST'])
 def ask_question():
     session_cookie_name = app.config['SESSION_COOKIE_NAME']
-    session_id = request.cookies.get(app.session_cookie_name)
+    session_id = request.cookies.get(session_cookie_name)
+
     if not session_id:
         # Si aucun ID de session n'existe, il s'agit d'une nouvelle session utilisateur.
         # Vous pouvez choisir de gérer ce cas comme vous le souhaitez.
@@ -93,9 +94,9 @@ def ask_question():
             if uploaded_file.filename.endswith('.docx'):
                 document = Document(io.BytesIO(uploaded_file.read()))
                 file_content = "\n".join([paragraph.text for paragraph in document.paragraphs])
-                uploaded_file_message = Message(conversation_id=new_conversation.id, role="user", content="Uploaded File: " + uploaded_file.filename)
+                uploaded_file_message = Message(conversation_id=conversation.id, role="user", content="Uploaded File: " + uploaded_file.filename)
                 db.session.add(uploaded_file_message)
-                file_content_message = Message(conversation_id=new_conversation.id, role="user", content=file_content)
+                file_content_message = Message(conversation_id=conversation.id, role="user", content=file_content)
                 db.session.add(file_content_message)
             else:
                 return jsonify({"error": "Type de fichier non pris en charge."}), 400
@@ -105,7 +106,7 @@ def ask_question():
 
     db.session.commit()
 
-    db_messages = Message.query.filter_by(conversation_id=new_conversation.id).all()
+    db_messages = Message.query.filter_by(conversation_id=conversation.id).all()
     messages_for_openai = [{"role": msg.role, "content": msg.content} for msg in db_messages]
 
     if question or uploaded_file:
@@ -116,7 +117,7 @@ def ask_question():
             )
             response_chatgpt = chat_completion.choices[0].message.content
 
-            response_message = Message(conversation_id=new_conversation.id, role="assistant", content=response_chatgpt)
+            response_message = Message(conversation_id=conversation.id, role="assistant", content=response_chatgpt)
             db.session.add(response_message)
             db.session.commit()
 
