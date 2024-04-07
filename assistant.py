@@ -4,6 +4,7 @@ import os
 from flask_cors import CORS
 import markdown2
 from docx import Document
+import io
 
 app = Flask(__name__)
 CORS(app, supports_credentials=True, origins=['https://kokua.fr', 'https://www.kokua.fr'])
