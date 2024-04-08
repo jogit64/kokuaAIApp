@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, make_response
+from flask import Flask, render_template, request, jsonify, session, make_response
 from openai import OpenAI
 import os
 from flask_cors import CORS
@@ -7,6 +7,8 @@ import markdown2
 from docx import Document
 import io
 from flask_migrate import Migrate
+import uuid
+
 
 
 
@@ -61,17 +63,17 @@ def home():
 
 @app.route('/ask', methods=['POST'])
 def ask_question():
-    session_cookie_name = app.config['SESSION_COOKIE_NAME']
-    session_id = request.cookies.get(session_cookie_name)
+    # Utiliser directement Flask pour gérer l'ID de session au lieu de le lire depuis les cookies manuellement
+    if 'session_id' not in session:
+        # Si aucun ID de session n'existe dans Flask session, cela signifie qu'il s'agit d'une nouvelle session utilisateur.
+        # Générer un nouvel ID de session et le stocker dans Flask session.
+        session['session_id'] = str(uuid.uuid4())  # Assure-toi que c'est un ID unique, par exemple en utilisant uuid.uuid4()
 
-    if not session_id:
-        # Si aucun ID de session n'existe, il s'agit d'une nouvelle session utilisateur.
-        # Vous pouvez choisir de gérer ce cas comme vous le souhaitez.
-        return jsonify({"error": "Session non trouvée."}), 400
-    
-     # Vérifiez si une conversation existe pour cet ID de session.
+    # Maintenant, on peut récupérer cet ID de session à partir de Flask session
+    session_id = session['session_id']
+
+    # Vérifiez si une conversation existe pour cet ID de session.
     conversation = Conversation.query.filter_by(session_id=session_id).first()
-
 
     if not conversation:
         # Si aucune conversation n'existe pour cet ID de session, créez-en une nouvelle.
