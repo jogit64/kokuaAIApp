@@ -53,7 +53,7 @@ def home():
 @app.route('/set-test-cookie')
 def set_test_cookie():
     response = make_response("Cookie Set")
-    response.set_cookie('test', 'test_value', secure=True, samesite='None', domain='.kokua.fr')
+    response.set_cookie('test de jo et kokua', 'test_value', secure=True, samesite='None', domain='.kokua.fr')
     return response
 
 
