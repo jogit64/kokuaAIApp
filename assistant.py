@@ -20,6 +20,7 @@ db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 
 CORS(app, supports_credentials=True, origins=['https://kokua.fr', 'https://www.kokua.fr'])
+app.secret_key = 'assistant-ai-1a-urrugne-64122'  
 
 app.secret_key = 'assistant-ai-1a-urrugne-64122'
 app.config['SESSION_COOKIE_SECURE'] = True
