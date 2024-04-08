@@ -47,6 +47,15 @@ def home():
     # session['message_history'] = []  # Réinitialise l'historique pour chaque nouvelle session
     return render_template('index.html')
 
+
+
+@app.route('/set-test-cookie')
+def set_test_cookie():
+    response = make_response("Cookie Set")
+    response.set_cookie('test', 'test_value', secure=True, samesite='None', domain='.kokua.fr')
+    return response
+
+
 @app.route('/ask', methods=['POST'])
 def ask_question():
     session_cookie_name = app.config['SESSION_COOKIE_NAME']
