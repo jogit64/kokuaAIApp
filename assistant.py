@@ -49,12 +49,16 @@ def home():
     return render_template('index.html')
 
 
+from flask import Flask, make_response
+
+app = Flask(__name__)
 
 @app.route('/set-test-cookie')
 def set_test_cookie():
     response = make_response("Cookie Set")
     response.set_cookie('test', 'chez jouni', secure=True, samesite='None', domain='.kokua.fr')
     return response
+
 
 
 @app.route('/ask', methods=['POST'])
