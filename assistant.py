@@ -11,9 +11,10 @@ from flask_migrate import Migrate
 
 
 app = Flask(__name__)
-# CORS(app, supports_credentials=True, origins=['https://kokua.fr', 'https://www.kokua.fr'])
-CORS(app, supports_credentials=True, origins='*')
+CORS(app, supports_credentials=True, origins=['https://kokua.fr', 'https://www.kokua.fr'])
+# CORS(app, supports_credentials=True, origins='*')
 
+app.secret_key = 'assistant-ai-1a-urrugne-64122'  
 
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL').replace("://", "ql://", 1) # Remplacez pour corriger l'URL pour PostgreSQL
 # Exemple de configuration temporaire pour la génération des migrations
@@ -23,7 +24,6 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 
-app.secret_key = 'assistant-ai-1a-urrugne-64122'  
 
 app.secret_key = 'assistant-ai-1a-urrugne-64122'
 app.config['SESSION_COOKIE_SECURE'] = True
@@ -50,10 +50,6 @@ def home():
     # session['message_history'] = []  # Réinitialise l'historique pour chaque nouvelle session
     return render_template('index.html')
 
-
-from flask import Flask, make_response
-
-app = Flask(__name__)
 
 @app.route('/set-test-cookie')
 def set_test_cookie():
