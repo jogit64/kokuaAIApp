@@ -11,6 +11,9 @@ from flask_migrate import Migrate
 
 
 app = Flask(__name__)
+# CORS(app, supports_credentials=True, origins=['https://kokua.fr', 'https://www.kokua.fr'])
+CORS(app, supports_credentials=True, origins='*')
+
 
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL').replace("://", "ql://", 1) # Remplacez pour corriger l'URL pour PostgreSQL
 # Exemple de configuration temporaire pour la génération des migrations
@@ -20,7 +23,6 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 
-CORS(app, supports_credentials=True, origins=['https://kokua.fr', 'https://www.kokua.fr'])
 app.secret_key = 'assistant-ai-1a-urrugne-64122'  
 
 app.secret_key = 'assistant-ai-1a-urrugne-64122'
