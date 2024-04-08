@@ -48,7 +48,7 @@ class Message(db.Model):
 client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
 @app.route('/')
-def home():
+def home(): 
     # session['message_history'] = []  # Réinitialise l'historique pour chaque nouvelle session
     return render_template('index.html')
 
