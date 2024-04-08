@@ -59,7 +59,10 @@ def home():
 #     response.set_cookie('test', 'chez jouni', secure=True, samesite='None', domain='.kokua.fr')
 #     return response
 
-
+@app.route('/reset-session', methods=['POST'])
+def reset_session():
+    session.pop('session_id', None)  # Supprime l'ID de session actuel
+    return jsonify({"message": "Session réinitialisée"}), 200
 
 @app.route('/ask', methods=['POST'])
 def ask_question():
