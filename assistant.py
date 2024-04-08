@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, session, jsonify
+from flask import Flask, render_template, request, jsonify, make_response
 from openai import OpenAI
 import os
 from flask_cors import CORS
@@ -7,6 +7,7 @@ import markdown2
 from docx import Document
 import io
 from flask_migrate import Migrate
+
 
 
 app = Flask(__name__)
