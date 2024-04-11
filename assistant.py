@@ -8,7 +8,8 @@ from docx import Document
 import io
 from flask_migrate import Migrate
 import uuid
-
+from datetime import datetime, timedelta
+from apscheduler.schedulers.background import BackgroundScheduler
 
 
 
@@ -27,6 +28,8 @@ db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 
 
+
+
 app.secret_key = 'assistant-ai-1a-urrugne-64122'
 app.config['SESSION_COOKIE_SECURE'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'None'
@@ -35,7 +38,9 @@ app.config['SESSION_COOKIE_SAMESITE'] = 'None'
 class Conversation(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     session_id = db.Column(db.Text, unique=True, nullable=False)
+    derniere_activite = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     messages = db.relationship('Message', backref='conversation', lazy=True)
+
 
 
 class Message(db.Model):
@@ -46,6 +51,18 @@ class Message(db.Model):
 
 
 client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+
+
+def nettoyer_conversations_inactives():
+    limite_inactivite = datetime.now() - timedelta(days=30)  # Exemple: 30 jours d'inactivité
+    conversations_inactives = Conversation.query.filter(Conversation.derniere_activite < limite_inactivite).all()
+    for conversation in conversations_inactives:
+        db.session.delete(conversation)
+    db.session.commit()
+
+scheduler = BackgroundScheduler()
+scheduler.add_job(func=nettoyer_conversations_inactives, trigger="interval", days=1)  # Exécute tous les jours
+scheduler.start()
 
 @app.route('/')
 def home(): 
@@ -66,23 +83,31 @@ def reset_session():
 
 @app.route('/ask', methods=['POST'])
 def ask_question():
-    # Utiliser directement Flask pour gérer l'ID de session au lieu de le lire depuis les cookies manuellement
+    # S'assure que session_id existe dans la session Flask, sinon en crée un nouveau.
     if 'session_id' not in session:
-        # Si aucun ID de session n'existe dans Flask session, cela signifie qu'il s'agit d'une nouvelle session utilisateur.
-        # Générer un nouvel ID de session et le stocker dans Flask session.
-        session['session_id'] = str(uuid.uuid4())  # Assure-toi que c'est un ID unique, par exemple en utilisant uuid.uuid4()
-
-    # Maintenant, on peut récupérer cet ID de session à partir de Flask session
+        session['session_id'] = str(uuid.uuid4())
+    
+    # Récupère l'ID de session depuis la session Flask.
     session_id = session['session_id']
 
-    # Vérifiez si une conversation existe pour cet ID de session.
-    conversation = Conversation.query.filter_by(session_id=session_id).first()
-
-    if not conversation:
-        # Si aucune conversation n'existe pour cet ID de session, créez-en une nouvelle.
-        conversation = Conversation(session_id=session_id)
-        db.session.add(conversation)
+    try:
+        # Vérifie si une conversation existe pour cet ID de session.
+        conversation = Conversation.query.filter_by(session_id=session_id).first()
+        if not conversation:
+            # Si aucune conversation n'existe, en crée une nouvelle.
+            conversation = Conversation(session_id=session_id, derniere_activite=datetime.utcnow())
+            db.session.add(conversation)
+        else:
+            # Si une conversation existe, met à jour la dernière activité.
+            conversation.derniere_activite = datetime.utcnow()
+        
         db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Erreur lors de la gestion de la conversation : {e}")
+        return jsonify({"error": "Un problème est survenu lors de la gestion de la conversation"}), 500
+    finally:
+        db.session.close()  # Ferme la session pour libérer la connexion
 
     question = request.form.get('question')
     uploaded_file = request.files.get('file')
