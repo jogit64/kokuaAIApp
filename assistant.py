@@ -162,6 +162,7 @@ def ask_question():
             )
             response_chatgpt = chat_completion.choices[0].message.content
 
+
             response_message = Message(conversation_id=conversation.id, role="assistant", content=response_chatgpt)
             db.session.add(response_message)
             db.session.commit()
