@@ -116,7 +116,7 @@ def ask_question():
     # Créez une nouvelle conversation
     # new_conversation = Conversation()
     # db.session.add(new_conversation)
-    # db.session.commit()
+    # db.session.commit() 
 
 
 
