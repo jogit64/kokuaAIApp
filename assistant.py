@@ -101,13 +101,14 @@ def ask_question():
             # Si une conversation existe, met à jour la dernière activité.
             conversation.derniere_activite = datetime.utcnow()
         
-        db.session.commit()
+        db.session.commit()  # Confirmez les modifications ici.
     except Exception as e:
-        db.session.rollback()
+        db.session.rollback()  # En cas d'erreur, annulez les modifications.
         app.logger.error(f"Erreur lors de la gestion de la conversation : {e}")
         return jsonify({"error": "Un problème est survenu lors de la gestion de la conversation"}), 500
     finally:
-        db.session.close()  # Ferme la session pour libérer la connexion
+        db.session.close()  # Fermez la session ici, après toutes les opérations.
+    
 
     question = request.form.get('question')
     uploaded_file = request.files.get('file')
