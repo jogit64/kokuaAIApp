@@ -106,8 +106,8 @@ def ask_question():
         db.session.rollback()  # En cas d'erreur, annulez les modifications.
         app.logger.error(f"Erreur lors de la gestion de la conversation : {e}")
         return jsonify({"error": "Un problème est survenu lors de la gestion de la conversation"}), 500
-    finally:
-        db.session.close()  # Fermez la session ici, après toutes les opérations.
+    # finally:
+    #     db.session.close()  # Fermez la session ici, après toutes les opérations.
     
 
     question = request.form.get('question')
@@ -167,6 +167,8 @@ def ask_question():
             db.session.commit()
 
             response_html = markdown2.markdown(response_chatgpt)
+
+            db.session.close()
             return jsonify({"response": response_html})
         except Exception as e:
             app.logger.error(f"Erreur lors de la génération de la réponse : {e}")
