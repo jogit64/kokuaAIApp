@@ -10,46 +10,26 @@ from flask_migrate import Migrate
 import uuid
 from datetime import datetime, timedelta
 from apscheduler.schedulers.background import BackgroundScheduler
-
 import json
 
+# Configuration JSON
 with open('config.json', 'r') as f:
     config = json.load(f)
 
 openai_settings = config['openai_settings']
 
-
-chat_completion = client.chat.completions.create(
-    messages=messages_for_openai,
-    model=openai_settings['model'],
-    temperature=openai_settings['temperature'],
-    max_tokens=openai_settings['max_tokens']
-)
-
-
+# Initialisation du client OpenAI
 client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
+# Configuration de Flask
 app = Flask(__name__)
 CORS(app, supports_credentials=True, origins=['https://kokua.fr', 'https://www.kokua.fr'])
-# CORS(app, supports_credentials=True, origins='*')
 
-app.secret_key = 'assistant-ai-1a-urrugne-64122'  
-
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL').replace("://", "ql://", 1) # Remplacez pour corriger l'URL pour PostgreSQL
-# Exemple de configuration temporaire pour la génération des migrations
-# app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///temp.db'
-
+app.secret_key = 'secret-key'  
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL').replace("://", "ql://", 1)
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
-
-
-
-
-app.secret_key = 'assistant-ai-1a-urrugne-64122'
-app.config['SESSION_COOKIE_SECURE'] = True
-app.config['SESSION_COOKIE_SAMESITE'] = 'None'
-
 
 class Conversation(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -57,44 +37,30 @@ class Conversation(db.Model):
     derniere_activite = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     messages = db.relationship('Message', backref='conversation', lazy=True)
 
-
-
 class Message(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     conversation_id = db.Column(db.Integer, db.ForeignKey('conversation.id'), nullable=False)
     role = db.Column(db.String(50), nullable=False)  # "system", "user", ou "assistant"
     content = db.Column(db.Text, nullable=False)
 
-
-
-
-
 def nettoyer_conversations_inactives():
-    limite_inactivite = datetime.now() - timedelta(days=30)  # Exemple: 30 jours d'inactivité
+    limite_inactivite = datetime.now() - timedelta(days=30)
     conversations_inactives = Conversation.query.filter(Conversation.derniere_activite < limite_inactivite).all()
     for conversation in conversations_inactives:
         db.session.delete(conversation)
     db.session.commit()
 
 scheduler = BackgroundScheduler()
-scheduler.add_job(func=nettoyer_conversations_inactives, trigger="interval", days=1)  # Exécute tous les jours
+scheduler.add_job(func=nettoyer_conversations_inactives, trigger="interval", days=1)
 scheduler.start()
 
 @app.route('/')
-def home(): 
-    # session['message_history'] = []  # Réinitialise l'historique pour chaque nouvelle session
+def home():
     return render_template('index.html')
-
-
-# @app.route('/set-test-cookie') 
-# def set_test_cookie():
-#     response = make_response("Cookie Set")
-#     response.set_cookie('test', 'chez jouni', secure=True, samesite='None', domain='.kokua.fr')
-#     return response
 
 @app.route('/reset-session', methods=['POST'])
 def reset_session():
-    session.pop('session_id', None)  # Supprime l'ID de session actuel
+    session.pop('session_id', None)
     return jsonify({"message": "Session réinitialisée"}), 200
 
 @app.route('/ask', methods=['POST'])
@@ -167,7 +133,6 @@ def ask_question():
             return jsonify({"error": "Erreur lors de la génération de la réponse.", "details": str(e)}), 500
     else:
         return jsonify({"error": "Aucune question ou fichier fourni."}), 400
-
 
 if __name__ == '__main__':
     app.run(debug=True)
