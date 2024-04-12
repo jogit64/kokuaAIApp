@@ -11,6 +11,21 @@ import uuid
 from datetime import datetime, timedelta
 from apscheduler.schedulers.background import BackgroundScheduler
 
+import yaml
+
+with open('config.yaml', 'r') as f:
+    config = yaml.safe_load(f)
+
+openai_settings = config['openai_settings']
+
+
+chat_completion = client.chat.completions.create(
+    messages=messages_for_openai,
+    model=openai_settings['model'],
+    temperature=openai_settings['temperature'],
+    max_tokens=openai_settings['max_tokens']
+)
+
 
 
 app = Flask(__name__)
@@ -83,56 +98,33 @@ def reset_session():
 
 @app.route('/ask', methods=['POST'])
 def ask_question():
-    # S'assure que session_id existe dans la session Flask, sinon en crée un nouveau.
     if 'session_id' not in session:
         session['session_id'] = str(uuid.uuid4())
-    
-    # Récupère l'ID de session depuis la session Flask.
     session_id = session['session_id']
 
     try:
-        # Vérifie si une conversation existe pour cet ID de session.
         conversation = Conversation.query.filter_by(session_id=session_id).first()
         if not conversation:
-            # Si aucune conversation n'existe, en crée une nouvelle.
             conversation = Conversation(session_id=session_id, derniere_activite=datetime.utcnow())
             db.session.add(conversation)
         else:
-            # Si une conversation existe, met à jour la dernière activité.
             conversation.derniere_activite = datetime.utcnow()
-        
-        db.session.commit()  # Confirmez les modifications ici.
+        db.session.commit()
     except Exception as e:
-        db.session.rollback()  # En cas d'erreur, annulez les modifications.
+        db.session.rollback()
         app.logger.error(f"Erreur lors de la gestion de la conversation : {e}")
         return jsonify({"error": "Un problème est survenu lors de la gestion de la conversation"}), 500
-    # finally:
-    #     db.session.close()  # Fermez la session ici, après toutes les opérations.
-    
 
     question = request.form.get('question')
     uploaded_file = request.files.get('file')
 
-    # Créez une nouvelle conversation
-    # new_conversation = Conversation()
-    # db.session.add(new_conversation)
-    # db.session.commit() 
-
-
-
-    instructions_content = """
-    # Analyse et Traitement d’Entretiens 
-    ## Contexte: Expertise CHSCT et CSE
-    ## Connaissances: Les rapports d’expertise CHSCT et CSE réalisés au profit des élus représentants du personnel. Les normes de l'INRS et de l'ANACT.
-    ## Objectif: Mise au propre de notes, objectif exhaustivité.
-    ## Analyse et traitement: Transformer les notes brutes en un compte-rendu structuré et clair, sans ajouter d'interprétations ou de créativité.
-    """
+    instructions_content = openai_settings['instructions']
     instructions_message = Message(conversation_id=conversation.id, role="system", content=instructions_content)
     db.session.add(instructions_message)
 
     if question:
-     question_message = Message(conversation_id=conversation.id, role="user", content=question)
-     db.session.add(question_message)
+        question_message = Message(conversation_id=conversation.id, role="user", content=question)
+        db.session.add(question_message)
 
     if uploaded_file and uploaded_file.filename:
         try:
@@ -143,8 +135,6 @@ def ask_question():
                 db.session.add(uploaded_file_message)
                 file_content_message = Message(conversation_id=conversation.id, role="user", content=file_content)
                 db.session.add(file_content_message)
-            else:
-                return jsonify({"error": "Type de fichier non pris en charge."}), 400
         except Exception as e:
             app.logger.error(f"Erreur lors du traitement du fichier : {e}")
             return jsonify({"error": "Le traitement du fichier a échoué.", "details": str(e)}), 400
@@ -158,17 +148,17 @@ def ask_question():
         try:
             chat_completion = client.chat.completions.create(
                 messages=messages_for_openai,
-                model="gpt-3.5-turbo",
+                model=openai_settings['model'],
+                temperature=openai_settings['temperature'],
+                max_tokens=openai_settings['max_tokens']
             )
             response_chatgpt = chat_completion.choices[0].message.content
-
 
             response_message = Message(conversation_id=conversation.id, role="assistant", content=response_chatgpt)
             db.session.add(response_message)
             db.session.commit()
 
             response_html = markdown2.markdown(response_chatgpt)
-
             db.session.close()
             return jsonify({"response": response_html})
         except Exception as e:
@@ -176,6 +166,7 @@ def ask_question():
             return jsonify({"error": "Erreur lors de la génération de la réponse.", "details": str(e)}), 500
     else:
         return jsonify({"error": "Aucune question ou fichier fourni."}), 400
+
 
 if __name__ == '__main__':
     app.run(debug=True)
