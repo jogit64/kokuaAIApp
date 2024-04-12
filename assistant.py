@@ -11,10 +11,10 @@ import uuid
 from datetime import datetime, timedelta
 from apscheduler.schedulers.background import BackgroundScheduler
 
-import yaml
+import json
 
-with open('config.yaml', 'r') as f:
-    config = yaml.safe_load(f)
+with open('config.json', 'r') as f:
+    config = json.load(f)
 
 openai_settings = config['openai_settings']
 

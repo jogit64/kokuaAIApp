@@ -1,0 +1,8 @@
+{
+  "openai_settings": {
+    "model": "gpt-3.5-turbo",
+    "temperature": 0.7,
+    "max_tokens": 150,
+    "instructions": "# Analyse et Traitement d’Entretiens \n## Contexte: Expertise CHSCT et CSE\n## Connaissances: Les rapports d’expertise CHSCT et CSE réalisés au profit des élus représentants du personnel. Les normes de l'INRS et de l'ANACT.\n## Objectif: Mise au propre de notes, objectif exhaustivité.\n## Analyse et traitement: Transformer les notes brutes en un compte-rendu structuré et clair, sans ajouter d'interprétations ou de créativité."
+  }
+}
