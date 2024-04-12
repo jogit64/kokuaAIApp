@@ -27,6 +27,7 @@ chat_completion = client.chat.completions.create(
 )
 
 
+client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
 app = Flask(__name__)
 CORS(app, supports_credentials=True, origins=['https://kokua.fr', 'https://www.kokua.fr'])
@@ -65,7 +66,7 @@ class Message(db.Model):
     content = db.Column(db.Text, nullable=False)
 
 
-client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+
 
 
 def nettoyer_conversations_inactives():
