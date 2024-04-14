@@ -30,7 +30,7 @@ migrate = Migrate(app, db)
 
 
 
-app.secret_key = 'assistant-ai-1a-urrugne-64122'
+
 app.config['SESSION_COOKIE_SECURE'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'None'
 
