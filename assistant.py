@@ -121,7 +121,7 @@ def ask_question():
 
 
     instructions_content = """
-    # Analyse et Traitement d’Entretiens 
+    # Analyse et Traitement d’Entretiens
     ## Contexte: Expertise CHSCT et CSE
     ## Connaissances: Les rapports d’expertise CHSCT et CSE réalisés au profit des élus représentants du personnel. Les normes de l'INRS et de l'ANACT.
     ## Objectif: Mise au propre de notes, objectif exhaustivité.
