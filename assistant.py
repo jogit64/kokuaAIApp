@@ -13,7 +13,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from flask import Flask, session
 from flask_session import Session
 import redis
-
+import json
 
 app = Flask(__name__)
 app.config['SESSION_TYPE'] = 'redis'
@@ -89,96 +89,96 @@ def home():
 #     response.set_cookie('test', 'chez jouni', secure=True, samesite='None', domain='.kokua.fr')
 #     return response
 
+
+
 @app.route('/reset-session', methods=['POST'])
 def reset_session():
     session.pop('session_id', None)  # Supprime l'ID de session actuel
     return jsonify({"message": "Session réinitialisée"}), 200
 
+
+
+@app.route('/ask', methods=['POST'])
 @app.route('/ask', methods=['POST'])
 def ask_question():
+    # Charges les modèles et instructions GPT.
+    with open('gpt_config.json', 'r') as f:
+        gpt_config = json.load(f)
+
     # S'assure que session_id existe dans la session Flask, sinon en crée un nouveau.
     if 'session_id' not in session:
         session['session_id'] = str(uuid.uuid4())
-    
-    # Récupère l'ID de session depuis la session Flask.
+
     session_id = session['session_id']
 
     try:
-        # Vérifie si une conversation existe pour cet ID de session.
         conversation = Conversation.query.filter_by(session_id=session_id).first()
         if not conversation:
-            # Si aucune conversation n'existe, en crée une nouvelle.
             conversation = Conversation(session_id=session_id, derniere_activite=datetime.utcnow())
             db.session.add(conversation)
         else:
-            # Si une conversation existe, met à jour la dernière activité.
             conversation.derniere_activite = datetime.utcnow()
-        
-        db.session.commit()  # Confirmez les modifications ici.
+        db.session.commit()
     except Exception as e:
-        db.session.rollback()  # En cas d'erreur, annulez les modifications.
+        db.session.rollback()
         app.logger.error(f"Erreur lors de la gestion de la conversation : {e}")
         return jsonify({"error": "Un problème est survenu lors de la gestion de la conversation"}), 500
-    # finally:
-    #     db.session.close()  # Fermez la session ici, après toutes les opérations.
     
-   # Traitement de la question ou du fichier...
     question = request.form.get('question')
     uploaded_file = request.files.get('file')
-   
-
-    # Créez une nouvelle conversation
-    # new_conversation = Conversation()
-    # db.session.add(new_conversation)
-    # db.session.commit() 
-
-
-
-    instructions_content = """
-    commence ta réponse par "salut Jo"
-    """
+    
+    # Ajout de l'instruction initiale spécifique au GPT
+    instructions_content = gpt_config['instructions']
     instructions_message = Message(conversation_id=conversation.id, role="system", content=instructions_content)
     db.session.add(instructions_message)
-
+    
+    # Traitement de la question de l'utilisateur
     if question:
-     question_message = Message(conversation_id=conversation.id, role="user", content=question)
-     db.session.add(question_message)
+        question_message = Message(conversation_id=conversation.id, role="user", content=question)
+        db.session.add(question_message)
 
+    # Traitement du fichier téléchargé
     if uploaded_file and uploaded_file.filename:
+     if uploaded_file.filename.endswith('.docx'):
         try:
-            if uploaded_file.filename.endswith('.docx'):
-                document = Document(io.BytesIO(uploaded_file.read()))
-                file_content = "\n".join([paragraph.text for paragraph in document.paragraphs])
-                uploaded_file_message = Message(conversation_id=conversation.id, role="user", content="Uploaded File: " + uploaded_file.filename)
-                db.session.add(uploaded_file_message)
-                file_content_message = Message(conversation_id=conversation.id, role="user", content=file_content)
-                db.session.add(file_content_message)
-            else:
-                return jsonify({"error": "Type de fichier non pris en charge."}), 400
+            document = Document(io.BytesIO(uploaded_file.read()))
+            file_content = "\n".join([paragraph.text for paragraph in document.paragraphs])
+            uploaded_file_message = Message(conversation_id=conversation.id, role="user", content="Uploaded File: " + uploaded_file.filename)
+            db.session.add(uploaded_file_message)
+            file_content_message = Message(conversation_id=conversation.id, role="user", content=file_content)
+            db.session.add(file_content_message)
         except Exception as e:
             app.logger.error(f"Erreur lors du traitement du fichier : {e}")
-            return jsonify({"error": "Le traitement du fichier a échoué.", "details": str(e)}), 400
+            return jsonify({"error": gpt_config['error_file_processing'], "details": str(e)}), 400
+    else:
+        return jsonify({"error": gpt_config['error_file_type']}), 400
+
 
     db.session.commit()
 
+    # Préparation des messages pour OpenAI
     db_messages = Message.query.filter_by(conversation_id=conversation.id).all()
     messages_for_openai = [{"role": msg.role, "content": msg.content} for msg in db_messages]
 
+    # Envoi à OpenAI et génération de la réponse
     if question or uploaded_file:
         try:
             chat_completion = client.chat.completions.create(
+                model=gpt_config['model'],
                 messages=messages_for_openai,
-                model="gpt-3.5-turbo",
+                temperature=gpt_config['temperature'],
+                max_tokens=gpt_config['max_tokens'],
+                top_p=gpt_config['top_p'],
+                frequency_penalty=gpt_config['frequency_penalty'],
+                presence_penalty=gpt_config['presence_penalty']
             )
             response_chatgpt = chat_completion.choices[0].message.content
-
 
             response_message = Message(conversation_id=conversation.id, role="assistant", content=response_chatgpt)
             db.session.add(response_message)
             db.session.commit()
 
             response_html = markdown2.markdown(response_chatgpt)
-
             db.session.close()
             return jsonify({"response": response_html})
         except Exception as e:
@@ -186,6 +186,9 @@ def ask_question():
             return jsonify({"error": "Erreur lors de la génération de la réponse.", "details": str(e)}), 500
     else:
         return jsonify({"error": "Aucune question ou fichier fourni."}), 400
+
+if __name__ == '__main__':
+    app.run(debug=True)
 
 if __name__ == '__main__':
     app.run(debug=True)

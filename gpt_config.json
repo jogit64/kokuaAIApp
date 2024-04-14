@@ -1,0 +1,11 @@
+{
+  "model": "gpt-3.5-turbo",
+  "temperature": 0.2,
+  "max_tokens": 150,
+  "instructions": "ta première réponse doit commencer par 'SALARIE'",
+  "top_p": 0.9,
+  "frequency_penalty": 0.2,
+  "presence_penalty": 0.2,
+  "error_file_type": "Type de fichier non pris en charge.",
+  "error_file_processing": "Le traitement du fichier a échoué."
+}
