@@ -12,6 +12,7 @@ from datetime import datetime, timedelta
 from apscheduler.schedulers.background import BackgroundScheduler
 from flask import Flask, session
 from flask_session import Session
+import redis
 
 
 app = Flask(__name__)
