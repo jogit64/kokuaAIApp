@@ -20,13 +20,11 @@ app.config['SESSION_TYPE'] = 'redis'
 app.config['SESSION_PERMANENT'] = False
 app.config['SESSION_USE_SIGNER'] = True
 
-redis_url = os.environ.get('REDIS_URL')
+redis_url = os.environ.get('REDISCLOUD_URL')
 if redis_url:
     app.config['SESSION_REDIS'] = redis.from_url(redis_url)
 else:
-    raise ValueError("REDIS_URL is not set in the environment variables.")
-
-# app.config['SESSION_REDIS'] = redis.from_url(os.environ.get('REDIS_URL'))
+    raise ValueError("REDISCLOUD_URL is not set in the environment variables.")
 
 
 Session(app)
