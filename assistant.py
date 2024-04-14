@@ -26,7 +26,6 @@ if redis_url:
 else:
     raise ValueError("REDISCLOUD_URL is not set in the environment variables.")
 
-
 Session(app)
 
 CORS(app, supports_credentials=True, origins=['https://kokua.fr', 'https://www.kokua.fr'])
