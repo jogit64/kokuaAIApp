@@ -105,6 +105,16 @@ def ask_question():
     with open('gpt_config.json', 'r') as f:
         gpt_config = json.load(f)
 
+    
+    # Récupération de la valeur de config sélectionnée par l'utilisateur
+    config_key = request.form.get('config')
+    
+    # Sélection de la configuration GPT basée sur la valeur de config
+    if config_key not in gpt_configs:
+        return jsonify({"error": "Configuration non valide."}), 400
+    gpt_config = gpt_configs[config_key]
+
+    
     # S'assure que session_id existe dans la session Flask, sinon en crée un nouveau.
     if 'session_id' not in session:
         session['session_id'] = str(uuid.uuid4())
@@ -181,9 +191,6 @@ def ask_question():
             return jsonify({"error": "Erreur lors de la génération de la réponse.", "details": str(e)}), 500
     else:
         return jsonify({"error": "Aucune question ou fichier fourni."}), 400
-
-if __name__ == '__main__':
-    app.run(debug=True)
 
 if __name__ == '__main__':
     app.run(debug=True)
