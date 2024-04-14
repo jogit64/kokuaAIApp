@@ -10,7 +10,8 @@ from flask_migrate import Migrate
 import uuid
 from datetime import datetime, timedelta
 from apscheduler.schedulers.background import BackgroundScheduler
-
+from flask import Flask, session
+from flask_session import Session
 
 
 app = Flask(__name__)
@@ -28,8 +29,12 @@ db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 
 
+app.config['SESSION_TYPE'] = 'redis'
+app.config['SESSION_PERMANENT'] = False
+app.config['SESSION_USE_SIGNER'] = True
+app.config['SESSION_REDIS'] = redis.from_url('redis://localhost:6379')
 
-
+Session(app)
 
 app.config['SESSION_COOKIE_SECURE'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'None'
@@ -109,9 +114,10 @@ def ask_question():
     # finally:
     #     db.session.close()  # Fermez la session ici, après toutes les opérations.
     
-
+   # Traitement de la question ou du fichier...
     question = request.form.get('question')
     uploaded_file = request.files.get('file')
+   
 
     # Créez une nouvelle conversation
     # new_conversation = Conversation()
