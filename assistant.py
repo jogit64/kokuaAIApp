@@ -139,20 +139,15 @@ def ask_question():
 
     # Traitement du fichier téléchargé
     if uploaded_file and uploaded_file.filename:
-     if uploaded_file.filename.endswith('.docx'):
-        try:
+        if uploaded_file.filename.endswith('.docx'):
             document = Document(io.BytesIO(uploaded_file.read()))
             file_content = "\n".join([paragraph.text for paragraph in document.paragraphs])
             uploaded_file_message = Message(conversation_id=conversation.id, role="user", content="Uploaded File: " + uploaded_file.filename)
             db.session.add(uploaded_file_message)
             file_content_message = Message(conversation_id=conversation.id, role="user", content=file_content)
             db.session.add(file_content_message)
-        except Exception as e:
-            app.logger.error(f"Erreur lors du traitement du fichier : {e}")
-            return jsonify({"error": gpt_config['error_file_processing'], "details": str(e)}), 400
-    else:
-        return jsonify({"error": gpt_config['error_file_type']}), 400
-
+        else:
+            return jsonify({"error": gpt_config['error_file_type']}), 400
 
     db.session.commit()
 
