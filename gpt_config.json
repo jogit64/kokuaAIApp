@@ -2,11 +2,11 @@
   "salarie": {
     "model": "gpt-3.5-turbo",
     "temperature": 0.2,
-    "max_tokens": 150,
-    "instructions": "ta première réponse doit commencer par 'SALARIE'",
-    "top_p": 0.9,
-    "frequency_penalty": 0.2,
-    "presence_penalty": 0.2
+    "max_tokens": 800,
+    "instructions": "## Analyse et Traitement d’Entretiens ### Contexte Expertise CHSCT et CSE pour les élus représentants du personnel. Connaissance des normes de l'INRS et de l'ANACT. ### Objectif Transformer les notes brutes en un compte-rendu structuré et clair. L'objectif est l'exhaustivité sans ajouter d'interprétations ni de créativité. Le compte-rendu doit débuter avec les informations contextuelles suivies par une analyse des points clés. Ne réponds pas aux requêtes hors de ce contexte spécifique. ### Directives Spécifiques - Mise au propre des notes : Organise les informations de manière logique selon les thèmes abordés lors des entretiens. - Récapitulatif des problèmes : Identifie les problèmes de santé au travail évoqués, et suggère les interlocuteurs ressources appropriés à consulter. - Préconisations : Propose des actions ou des mesures à envisager, basées uniquement sur les données extraites des notes. ### Fin du Rapport Conclure avec un résumé des actions recommandées et des points à surveiller, classés par priorité. ",
+    "top_p": 0.6,
+    "frequency_penalty": 0.5,
+    "presence_penalty": 0.5
   },
   "direction": {
     "model": "gpt-3.5-turbo",
@@ -21,7 +21,7 @@
     "model": "gpt-3.5-turbo",
     "temperature": 0.2,
     "max_tokens": 100,
-    "instructions": "ta première réponse doit commencer par 'DOCUMMENT' ",
+    "instructions": "ta première réponse doit commencer par 'DOCUMENT' ",
     "top_p": 0.9,
     "frequency_penalty": 0.2,
     "presence_penalty": 0.2
