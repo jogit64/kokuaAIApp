@@ -1,0 +1,47 @@
+{
+  "salarie": {
+    "model": "gpt-3.5-turbo",
+    "temperature": 0.2,
+    "max_tokens": 150,
+    "instructions": "ta première réponse doit commencer par 'SALARIE'",
+    "top_p": 0.9,
+    "frequency_penalty": 0.2,
+    "presence_penalty": 0.2
+  },
+  "direction": {
+    "model": "gpt-3.5-turbo",
+    "temperature": 0.2,
+    "max_tokens": 200,
+    "instructions": "ta première réponse doit commencer par 'DIRECTION'",
+    "top_p": 0.9,
+    "frequency_penalty": 0.2,
+    "presence_penalty": 0.2
+  },
+  "document": {
+    "model": "gpt-3.5-turbo",
+    "temperature": 0.2,
+    "max_tokens": 100,
+    "instructions": "ta première réponse doit commencer par 'DOCUMMENT' ",
+    "top_p": 0.9,
+    "frequency_penalty": 0.2,
+    "presence_penalty": 0.2
+  },
+  "mp3": {
+    "model": "gpt-3.5-turbo",
+    "temperature": 0.2,
+    "max_tokens": 150,
+    "instructions": "ta première réponse doit commencer par 'MP3'",
+    "top_p": 0.9,
+    "frequency_penalty": 0.2,
+    "presence_penalty": 0.2
+  },
+  "discussion": {
+    "model": "gpt-3.5-turbo",
+    "temperature": 0.2,
+    "max_tokens": 150,
+    "instructions": "ta première réponse doit commencer par 'DISCUT'",
+    "top_p": 0.9,
+    "frequency_penalty": 0.2,
+    "presence_penalty": 0.2
+  }
+}
