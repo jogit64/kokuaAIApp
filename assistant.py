@@ -121,11 +121,7 @@ def ask_question():
 
 
     instructions_content = """
-    # Analyse et Traitement d’Entretiens
-    ## Contexte: Expertise CHSCT et CSE
-    ## Connaissances: Les rapports d’expertise CHSCT et CSE réalisés au profit des élus représentants du personnel. Les normes de l'INRS et de l'ANACT.
-    ## Objectif: Mise au propre de notes, objectif exhaustivité.
-    ## Analyse et traitement: Transformer les notes brutes en un compte-rendu structuré et clair, sans ajouter d'interprétations ou de créativité.
+    commence ta réponse par "salut Jo"
     """
     instructions_message = Message(conversation_id=conversation.id, role="system", content=instructions_content)
     db.session.add(instructions_message)
