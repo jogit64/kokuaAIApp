@@ -103,7 +103,7 @@ def reset_session():
 def ask_question():
     # Charges les modèles et instructions GPT.
     with open('gpt_config.json', 'r') as f:
-        gpt_config = json.load(f)
+        gpt_configs = json.load(f)
 
     
     # Récupération de la valeur de config sélectionnée par l'utilisateur
