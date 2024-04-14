@@ -90,7 +90,6 @@ def home():
 #     return response
 
 
-
 @app.route('/reset-session', methods=['POST'])
 def reset_session():
     session.pop('session_id', None)  # Supprime l'ID de session actuel
