@@ -1,60 +1,49 @@
-from rq import Queue
 from flask import Flask, render_template, request, jsonify, session, make_response
-from openai import OpenAI
-import os
-from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
-import markdown2
+from flask_migrate import Migrate
+from flask_session import Session
+from flask_cors import CORS
+from redis import Redis
+import os
+import json
+import uuid
+from datetime import datetime, timedelta
+from apscheduler.schedulers.background import BackgroundScheduler
+import openai
+from rq import Queue
 from docx import Document
 import fitz  # PyMuPDF
 import openpyxl
 from pptx import Presentation
 import io
-from flask_migrate import Migrate
-import uuid
-from datetime import datetime, timedelta
-from apscheduler.schedulers.background import BackgroundScheduler
-from flask import Flask, session
-from flask_session import Session
-from redis import Redis
-import json
-
-
 
 app = Flask(__name__)
-
+app.secret_key = 'assistant-ai-1a-urrugne-64122' 
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
 
-# Configuration globale de Redis
 redis_url = os.getenv('REDISCLOUD_URL', 'redis://localhost:6379')
 redis_conn = Redis.from_url(redis_url)
 
-# Configurer Redis pour les sessions
-app.config['SESSION_TYPE'] = 'redis'
-app.config['SESSION_REDIS'] = redis_conn
-app.config['SESSION_PERMANENT'] = False
-app.config['SESSION_USE_SIGNER'] = True
-app.config['SESSION_COOKIE_SECURE'] = True
-app.config['SESSION_COOKIE_SAMESITE'] = 'None'
+app.config.update(
+    SESSION_TYPE='redis',
+    SESSION_REDIS=redis_conn,
+    SESSION_PERMANENT=False,
+    SESSION_USE_SIGNER=True,
+    SESSION_COOKIE_SECURE=True,
+    SESSION_COOKIE_SAMESITE='None',
+    SQLALCHEMY_DATABASE_URI=os.environ.get('DATABASE_URL').replace("://", "ql://", 1),
+    SQLALCHEMY_TRACK_MODIFICATIONS=False
+)
 
-# Configuration de la file d'attente RQ
+db = SQLAlchemy(app)
+migrate = Migrate(app, db)
+Session(app)
+CORS(app, supports_credentials=True, origins=['https://kokua.fr', 'https://www.kokua.fr'])
+
 queue = Queue(connection=redis_conn)
 
 
-Session(app)
 
-CORS(app, supports_credentials=True, origins=['https://kokua.fr', 'https://www.kokua.fr'])
-# CORS(app, supports_credentials=True, origins='*')
-
-app.secret_key = 'assistant-ai-1a-urrugne-64122'  
-
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL').replace("://", "ql://", 1) # Remplacez pour corriger l'URL pour PostgreSQL
-# Exemple de configuration temporaire pour la génération des migrations
-# app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///temp.db'
-
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-db = SQLAlchemy(app)
-migrate = Migrate(app, db)
 
 
 
@@ -147,22 +136,21 @@ def reset_session():
     return jsonify({"message": "Session réinitialisée"}), 200
 
 
-
-@app.route('/ask', methods=['POST'])
 @app.route('/ask', methods=['POST'])
 def ask_question():
     try:
-        # Toute votre logique ici
         uploaded_file = request.files.get('file')
         if uploaded_file and uploaded_file.content_length > MAX_FILE_SIZE:
             return jsonify({"error": "File size exceeds the maximum limit"}), 400
 
-        with open('gpt_config.json', 'r') as f:
-            gpt_configs = json.load(f)
+        if uploaded_file and not allowed_file(uploaded_file.filename):
+            return jsonify({"error": "Unsupported file type"}), 400
 
+        gpt_configs = load_config('gpt_config.json')
         config_key = request.form.get('config')
+
         if config_key not in gpt_configs:
-            return jsonify({"error": "Configuration non valide."}), 400
+            return jsonify({"error": "Invalid configuration key."}), 400
         gpt_config = gpt_configs[config_key]
 
         if 'session_id' not in session:
@@ -170,7 +158,7 @@ def ask_question():
         session_id = session['session_id']
 
         question = request.form.get('question')
-        file_content = uploaded_file.read() if uploaded_file else None
+        file_content = read_file_content(uploaded_file) if uploaded_file else None
         file_name = uploaded_file.filename if uploaded_file else None
 
         data = {
@@ -183,12 +171,12 @@ def ask_question():
         }
 
         job = queue.enqueue('path.to.your.function.process_question_function', data, result_ttl=5000)
-
         return jsonify({'job_id': job.get_id()}), 202
 
     except Exception as e:
-        print("Error processing request:", str(e))  # Log pour le débogage
+        app.logger.error(f"Error processing request: {str(e)}")  # Utilisez le système de log pour un meilleur suivi
         return jsonify({'error': 'Internal server error', 'details': str(e)}), 500
+
 
 
 
