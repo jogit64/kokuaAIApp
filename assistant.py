@@ -1,4 +1,5 @@
-from flask import Flask, render_template, request, jsonify, session, make_response
+from rq import Queue
+from flask import Flask, render_template, request, jsonify, session, make_response, 
 from openai import OpenAI
 import os
 from flask_cors import CORS
@@ -19,14 +20,25 @@ import redis
 import json
 
 app = Flask(__name__)
+
+
+# Configuration globale de Redis
+redis_url = os.getenv('REDISCLOUD_URL', 'redis://localhost:6379')
+redis_conn = Redis.from_url(redis_url)
+
+# Configurer Redis pour les sessions
 app.config['SESSION_TYPE'] = 'redis'
+app.config['SESSION_REDIS'] = redis_conn
 app.config['SESSION_PERMANENT'] = False
 app.config['SESSION_USE_SIGNER'] = True
+app.config['SESSION_COOKIE_SECURE'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'None'
 
-redis_url = os.environ.get('REDISCLOUD_URL')
-if redis_url:
-    app.config['SESSION_REDIS'] = redis.from_url(redis_url)
-else:
+# Configuration de la file d'attente RQ
+queue = Queue(connection=redis_conn)
+
+# Assurez-vous que REDISCLOUD_URL est défini
+if not redis_url:
     raise ValueError("REDISCLOUD_URL is not set in the environment variables.")
 
 Session(app)
@@ -139,26 +151,22 @@ def reset_session():
 @app.route('/ask', methods=['POST'])
 @app.route('/ask', methods=['POST'])
 def ask_question():
-    # Charges les modèles et instructions GPT.
+    # Chargement des configurations GPT depuis un fichier JSON
     with open('gpt_config.json', 'r') as f:
         gpt_configs = json.load(f)
 
-    
-    # Récupération de la valeur de config sélectionnée par l'utilisateur
+    # Récupération et validation de la configuration sélectionnée par l'utilisateur
     config_key = request.form.get('config')
-    
-    # Sélection de la configuration GPT basée sur la valeur de config
     if config_key not in gpt_configs:
         return jsonify({"error": "Configuration non valide."}), 400
     gpt_config = gpt_configs[config_key]
 
-    
-    # S'assure que session_id existe dans la session Flask, sinon en crée un nouveau.
+    # Assure l'existence d'un session_id dans la session Flask, sinon en crée un nouveau
     if 'session_id' not in session:
         session['session_id'] = str(uuid.uuid4())
-
     session_id = session['session_id']
 
+    # Gestion des conversations existantes ou création d'une nouvelle conversation
     try:
         conversation = Conversation.query.filter_by(session_id=session_id).first()
         if not conversation:
@@ -171,43 +179,38 @@ def ask_question():
         db.session.rollback()
         app.logger.error(f"Erreur lors de la gestion de la conversation : {e}")
         return jsonify({"error": "Un problème est survenu lors de la gestion de la conversation"}), 500
-    
+
+    # Récupération et traitement de la question et du fichier téléchargé
     question = request.form.get('question')
     uploaded_file = request.files.get('file')
-    
-    # Ajout de l'instruction initiale spécifique au GPT
+
+    # Enregistrement des messages initiaux et des instructions dans la base de données
     instructions_content = gpt_config['instructions']
     instructions_message = Message(conversation_id=conversation.id, role="system", content=instructions_content)
     db.session.add(instructions_message)
     
-    # Traitement de la question de l'utilisateur
     if question:
         question_message = Message(conversation_id=conversation.id, role="user", content=question)
         db.session.add(question_message)
 
-    # Traitement du fichier téléchargé
     if uploaded_file and uploaded_file.filename:
-      if uploaded_file and uploaded_file.filename:
         try:
             file_content = read_file_content(uploaded_file)
             uploaded_file_message = Message(conversation_id=conversation.id, role="user", content="Uploaded File: " + uploaded_file.filename)
-            db.session.add(uploaded_file_message)
             file_content_message = Message(conversation_id=conversation.id, role="user", content=file_content)
+            db.session.add(uploaded_file_message)
             db.session.add(file_content_message)
             db.session.commit()
-            # Continue processing and send to OpenAI
-        except ValueError as e:  # Catch the ValueError raised by read_file_content
+        except ValueError as e:
             return jsonify({"error": str(e)}), 400
         except Exception as e:
             return jsonify({"error": "Error processing file: " + str(e)}), 500
 
-    db.session.commit()
-
-    # Préparation des messages pour OpenAI
+    # Préparation des messages pour l'API OpenAI
     db_messages = Message.query.filter_by(conversation_id=conversation.id).all()
     messages_for_openai = [{"role": msg.role, "content": msg.content} for msg in db_messages]
 
-    # Envoi à OpenAI et génération de la réponse
+    # Envoi à OpenAI et traitement de la réponse
     if question or uploaded_file:
         try:
             chat_completion = client.chat.completions.create(
@@ -220,7 +223,6 @@ def ask_question():
                 presence_penalty=gpt_config['presence_penalty']
             )
             response_chatgpt = chat_completion.choices[0].message.content
-
             response_message = Message(conversation_id=conversation.id, role="assistant", content=response_chatgpt)
             db.session.add(response_message)
             db.session.commit()
@@ -236,3 +238,4 @@ def ask_question():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
