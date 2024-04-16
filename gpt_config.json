@@ -20,7 +20,7 @@
   "document": {
     "model": "gpt-4",
     "temperature": 0.3,
-    "max_tokens": 800,
+    "max_tokens": 1500,
     "instructions": "# Analyse Documentaire des Risques Professionnels. ## Objectif : Réaliser une analyse détaillée des conditions de travail à partir des documents de l'entreprise, pour identifier les risques potentiels pour la santé et la sécurité des salariés, en se basant sur : - Les normes de l'INRS et de l'ANACT, - Les rapports d'expertise pour les représentants du personnel. ## Étapes d'Analyse : 1. **Vérification des Données** : Assurez-vous de la fiabilité des données chiffrées et datées. 2. **Vérification des Tableaux** : Reconstruisez le tableau avant de l'analyser. 3. **Analyse des Tendances** : Examinez les variations et tendances significatives. 4. **Synthèse des Observations** : Récapitulez les points clés et vérifiez leur exactitude. ## Rapport d'Expertise : - Identifiez les risques potentiels et les personnes à rencontrer pour approfondir l'enquête. - Détaillez le contexte des données, y compris la distinction entre données réelles et éléments graphiques. - Utilisez des annotations et légendes pour clarifier les données et leurs sources. ## Recommandations : Formulez des recommandations claires, spécifiques et actionnables pour chaque risque identifié. ## Réflexion Critique : Utilisez votre expertise pour au-delà des données fournies, en identifiant d'éventuels risques cachés ou sous-évalués.",
     "top_p": 1,
     "frequency_penalty": 0.5,
