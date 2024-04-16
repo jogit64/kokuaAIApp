@@ -1,5 +1,5 @@
 from rq import Queue
-from flask import Flask, render_template, request, jsonify, session, make_response, 
+from flask import Flask, render_template, request, jsonify, session, make_response
 from openai import OpenAI
 import os
 from flask_cors import CORS
@@ -16,7 +16,7 @@ from datetime import datetime, timedelta
 from apscheduler.schedulers.background import BackgroundScheduler
 from flask import Flask, session
 from flask_session import Session
-import redis
+from redis import Redis
 import json
 
 app = Flask(__name__)
