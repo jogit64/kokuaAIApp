@@ -67,7 +67,8 @@ class Message(db.Model):
     content = db.Column(db.Text, nullable=False)
 
 
-client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+client = openai.OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+
 
 
 def nettoyer_conversations_inactives():
