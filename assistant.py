@@ -149,45 +149,47 @@ def reset_session():
 
 
 @app.route('/ask', methods=['POST'])
+@app.route('/ask', methods=['POST'])
 def ask_question():
+    try:
+        # Toute votre logique ici
+        uploaded_file = request.files.get('file')
+        if uploaded_file and uploaded_file.content_length > MAX_FILE_SIZE:
+            return jsonify({"error": "File size exceeds the maximum limit"}), 400
 
-    uploaded_file = request.files.get('file')
-    if uploaded_file and uploaded_file.content_length > MAX_FILE_SIZE:
-        return jsonify({"error": "File size exceeds the maximum limit"}), 400
+        with open('gpt_config.json', 'r') as f:
+            gpt_configs = json.load(f)
 
-    # Chargement des configurations GPT depuis un fichier JSON
-    with open('gpt_config.json', 'r') as f:
-        gpt_configs = json.load(f)
+        config_key = request.form.get('config')
+        if config_key not in gpt_configs:
+            return jsonify({"error": "Configuration non valide."}), 400
+        gpt_config = gpt_configs[config_key]
 
-    # Récupération et validation de la configuration sélectionnée par l'utilisateur
-    config_key = request.form.get('config')
-    if config_key not in gpt_configs:
-        return jsonify({"error": "Configuration non valide."}), 400
-    gpt_config = gpt_configs[config_key]
+        if 'session_id' not in session:
+            session['session_id'] = str(uuid.uuid4())
+        session_id = session['session_id']
 
-    # Assure l'existence d'un session_id dans la session Flask, sinon en crée un nouveau
-    if 'session_id' not in session:
-        session['session_id'] = str(uuid.uuid4())
-    session_id = session['session_id']
+        question = request.form.get('question')
+        file_content = uploaded_file.read() if uploaded_file else None
+        file_name = uploaded_file.filename if uploaded_file else None
 
-    question = request.form.get('question')
-    uploaded_file = request.files.get('file')
-    file_content = uploaded_file.read() if uploaded_file else None
-    file_name = uploaded_file.filename if uploaded_file else None
+        data = {
+            'session_id': session_id,
+            'question': question,
+            'config': gpt_config,
+            'file_content': file_content,
+            'file_name': file_name,
+            'instructions': gpt_config['instructions']
+        }
 
-    data = {
-        'session_id': session_id,
-        'question': question,
-        'config': gpt_config,
-        'file_content': file_content,
-        'file_name': file_name,
-        'instructions': gpt_config['instructions']
-    }
+        job = queue.enqueue('path.to.your.function.process_question_function', data, result_ttl=5000)
 
-    # Mettre en queue la tâche pour traitement asynchrone
-    job = queue.enqueue('path.to.your.function.process_question_function', data, result_ttl=5000)
+        return jsonify({'job_id': job.get_id()}), 202
 
-    return jsonify({'job_id': job.get_id()}), 202
+    except Exception as e:
+        print("Error processing request:", str(e))  # Log pour le débogage
+        return jsonify({'error': 'Internal server error', 'details': str(e)}), 500
+
 
 
 
