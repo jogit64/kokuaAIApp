@@ -147,7 +147,9 @@ def ask_question():
         if uploaded_file and not allowed_file(uploaded_file.filename):
             return jsonify({"error": "Unsupported file type"}), 400
 
-        gpt_configs = load_config('gpt_config.json')
+        with open('gpt_config.json', 'r') as f:
+            gpt_configs = json.load(f)
+
         config_key = request.form.get('config')
 
         if config_key not in gpt_configs:
@@ -170,8 +172,10 @@ def ask_question():
             'file_name': file_name,
             'instructions': gpt_config['instructions']
         }
+        
 
-        job = queue.enqueue('path.to.your.function.process_question_function', data, result_ttl=5000)
+        job = queue.enqueue(process_question_function, data, result_ttl=5000)
+
         return jsonify({'job_id': job.get_id()}), 202
 
     except Exception as e:
