@@ -19,8 +19,11 @@ from flask_session import Session
 from redis import Redis
 import json
 
+
+
 app = Flask(__name__)
 
+MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
 
 # Configuration globale de Redis
 redis_url = os.getenv('REDISCLOUD_URL', 'redis://localhost:6379')
@@ -37,9 +40,6 @@ app.config['SESSION_COOKIE_SAMESITE'] = 'None'
 # Configuration de la file d'attente RQ
 queue = Queue(connection=redis_conn)
 
-# Assurez-vous que REDISCLOUD_URL est défini
-if not redis_url:
-    raise ValueError("REDISCLOUD_URL is not set in the environment variables.")
 
 Session(app)
 
@@ -149,8 +149,12 @@ def reset_session():
 
 
 @app.route('/ask', methods=['POST'])
-@app.route('/ask', methods=['POST'])
 def ask_question():
+
+    uploaded_file = request.files.get('file')
+    if uploaded_file and uploaded_file.content_length > MAX_FILE_SIZE:
+        return jsonify({"error": "File size exceeds the maximum limit"}), 400
+
     # Chargement des configurations GPT depuis un fichier JSON
     with open('gpt_config.json', 'r') as f:
         gpt_configs = json.load(f)
@@ -166,75 +170,90 @@ def ask_question():
         session['session_id'] = str(uuid.uuid4())
     session_id = session['session_id']
 
-    # Gestion des conversations existantes ou création d'une nouvelle conversation
-    try:
-        conversation = Conversation.query.filter_by(session_id=session_id).first()
-        if not conversation:
-            conversation = Conversation(session_id=session_id, derniere_activite=datetime.utcnow())
-            db.session.add(conversation)
-        else:
-            conversation.derniere_activite = datetime.utcnow()
-        db.session.commit()
-    except Exception as e:
-        db.session.rollback()
-        app.logger.error(f"Erreur lors de la gestion de la conversation : {e}")
-        return jsonify({"error": "Un problème est survenu lors de la gestion de la conversation"}), 500
-
-    # Récupération et traitement de la question et du fichier téléchargé
     question = request.form.get('question')
     uploaded_file = request.files.get('file')
+    file_content = uploaded_file.read() if uploaded_file else None
+    file_name = uploaded_file.filename if uploaded_file else None
 
-    # Enregistrement des messages initiaux et des instructions dans la base de données
-    instructions_content = gpt_config['instructions']
-    instructions_message = Message(conversation_id=conversation.id, role="system", content=instructions_content)
-    db.session.add(instructions_message)
-    
+    data = {
+        'session_id': session_id,
+        'question': question,
+        'config': gpt_config,
+        'file_content': file_content,
+        'file_name': file_name,
+        'instructions': gpt_config['instructions']
+    }
+
+    # Mettre en queue la tâche pour traitement asynchrone
+    job = queue.enqueue('path.to.your.function.process_question_function', data, result_ttl=5000)
+
+    return jsonify({'job_id': job.get_id()}), 202
+
+
+
+def process_question_function(data, db, Message, Conversation):
+    import openai  # Assurez-vous que la bibliothèque OpenAI est installée et configurée correctement.
+
+    # Déballage des données
+    session_id = data['session_id']
+    question = data['question']
+    config = data['config']
+    file_content = data['file_content']
+    file_name = data['file_name']
+    instructions = data['instructions']
+
+    # Récupération ou création d'une conversation
+    conversation = Conversation.query.filter_by(session_id=session_id).first()
+    if not conversation:
+        conversation = Conversation(session_id=session_id)
+        db.session.add(conversation)
+        db.session.commit()
+
+    # Enregistrement des instructions et de la question dans la base de données
+    db.session.add(Message(conversation_id=conversation.id, role="system", content=instructions))
     if question:
-        question_message = Message(conversation_id=conversation.id, role="user", content=question)
-        db.session.add(question_message)
+        db.session.add(Message(conversation_id=conversation.id, role="user", content=question))
+    if file_name:
+        db.session.add(Message(conversation_id=conversation.id, role="user", content=f"Uploaded File: {file_name}"))
+    db.session.commit()
 
-    if uploaded_file and uploaded_file.filename:
-        try:
-            file_content = read_file_content(uploaded_file)
-            uploaded_file_message = Message(conversation_id=conversation.id, role="user", content="Uploaded File: " + uploaded_file.filename)
-            file_content_message = Message(conversation_id=conversation.id, role="user", content=file_content)
-            db.session.add(uploaded_file_message)
-            db.session.add(file_content_message)
-            db.session.commit()
-        except ValueError as e:
-            return jsonify({"error": str(e)}), 400
-        except Exception as e:
-            return jsonify({"error": "Error processing file: " + str(e)}), 500
+    # Préparation de la requête pour OpenAI
+    prompt = f"{instructions}\nQuestion: {question}\n"
+    if file_content:
+        prompt += f"File Content: {str(file_content)[:1000]}"  # Limitez la taille du contenu du fichier.
 
-    # Préparation des messages pour l'API OpenAI
-    db_messages = Message.query.filter_by(conversation_id=conversation.id).all()
-    messages_for_openai = [{"role": msg.role, "content": msg.content} for msg in db_messages]
+    # Appel à l'API OpenAI
+    try:
+        response = openai.Completion.create(
+            engine=config['model'],
+            prompt=prompt,
+            max_tokens=config['max_tokens'],
+            temperature=config['temperature'],
+            top_p=config['top_p'],
+            frequency_penalty=config['frequency_penalty'],
+            presence_penalty=config['presence_penalty']
+        )
+        response_text = response.choices[0].text.strip()
+    except Exception as e:
+        response_text = f"Failed to get response from OpenAI: {str(e)}"
 
-    # Envoi à OpenAI et traitement de la réponse
-    if question or uploaded_file:
-        try:
-            chat_completion = client.chat.completions.create(
-                model=gpt_config['model'],
-                messages=messages_for_openai,
-                temperature=gpt_config['temperature'],
-                max_tokens=gpt_config['max_tokens'],
-                top_p=gpt_config['top_p'],
-                frequency_penalty=gpt_config['frequency_penalty'],
-                presence_penalty=gpt_config['presence_penalty']
-            )
-            response_chatgpt = chat_completion.choices[0].message.content
-            response_message = Message(conversation_id=conversation.id, role="assistant", content=response_chatgpt)
-            db.session.add(response_message)
-            db.session.commit()
+    # Enregistrement de la réponse de l'API
+    db.session.add(Message(conversation_id=conversation.id, role="assistant", content=response_text))
+    db.session.commit()
 
-            response_html = markdown2.markdown(response_chatgpt)
-            db.session.close()
-            return jsonify({"response": response_html})
-        except Exception as e:
-            app.logger.error(f"Erreur lors de la génération de la réponse : {e}")
-            return jsonify({"error": "Erreur lors de la génération de la réponse.", "details": str(e)}), 500
+    return response_text
+
+
+
+@app.route('/results/<job_id>', methods=['GET'])
+def get_results(job_id):
+    job = queue.fetch_job(job_id)
+    if job.is_finished:
+        return jsonify(job.result), 200
+    elif job.is_failed:
+        return jsonify({'error': 'Job failed'}), 500
     else:
-        return jsonify({"error": "Aucune question ou fichier fourni."}), 400
+        return jsonify({'status': 'Still processing'}), 202
 
 if __name__ == '__main__':
     app.run(debug=True)
