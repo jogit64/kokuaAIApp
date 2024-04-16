@@ -5,6 +5,9 @@ from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 import markdown2
 from docx import Document
+import fitz  # PyMuPDF
+import openpyxl
+from pptx import Presentation
 import io
 from flask_migrate import Migrate
 import uuid
@@ -76,6 +79,41 @@ def nettoyer_conversations_inactives():
 scheduler = BackgroundScheduler()
 scheduler.add_job(func=nettoyer_conversations_inactives, trigger="interval", days=1)  # Exécute tous les jours
 scheduler.start()
+
+
+
+def read_file_content(uploaded_file):
+    file_type = uploaded_file.filename.split('.')[-1]
+    if file_type == 'docx':
+        document = Document(io.BytesIO(uploaded_file.read()))
+        return "\n".join([paragraph.text for paragraph in document.paragraphs])
+    elif file_type == 'pdf':
+        doc = fitz.open(stream=uploaded_file.read(), filetype="pdf")
+        text = ""
+        for page in doc:
+            text += page.get_text()
+        return text
+    elif file_type == 'txt':
+        return uploaded_file.read().decode('utf-8')
+    elif file_type == 'xlsx':
+        workbook = openpyxl.load_workbook(io.BytesIO(uploaded_file.read()))
+        sheet = workbook.active
+        data = []
+        for row in sheet.iter_rows(values_only=True):
+            data.append(' '.join([str(cell) for cell in row if cell is not None]))
+        return "\n".join(data)
+    elif file_type == 'pptx':
+        ppt = Presentation(io.BytesIO(uploaded_file.read()))
+        text = []
+        for slide in ppt.slides:
+            for shape in slide.shapes:
+                if hasattr(shape, "text"):
+                    text.append(shape.text)
+        return "\n".join(text)
+    else:
+        raise ValueError("Unsupported file type")
+    
+
 
 @app.route('/')
 def home(): 
@@ -149,15 +187,19 @@ def ask_question():
 
     # Traitement du fichier téléchargé
     if uploaded_file and uploaded_file.filename:
-        if uploaded_file.filename.endswith('.docx'):
-            document = Document(io.BytesIO(uploaded_file.read()))
-            file_content = "\n".join([paragraph.text for paragraph in document.paragraphs])
+      if uploaded_file and uploaded_file.filename:
+        try:
+            file_content = read_file_content(uploaded_file)
             uploaded_file_message = Message(conversation_id=conversation.id, role="user", content="Uploaded File: " + uploaded_file.filename)
             db.session.add(uploaded_file_message)
             file_content_message = Message(conversation_id=conversation.id, role="user", content=file_content)
             db.session.add(file_content_message)
-        else:
-            return jsonify({"error": gpt_config['error_file_type']}), 400
+            db.session.commit()
+            # Continue processing and send to OpenAI
+        except ValueError as e:  # Catch the ValueError raised by read_file_content
+            return jsonify({"error": str(e)}), 400
+        except Exception as e:
+            return jsonify({"error": "Error processing file: " + str(e)}), 500
 
     db.session.commit()
 
