@@ -74,7 +74,7 @@ def nettoyer_conversations_inactives():
     conversations_inactives = Conversation.query.filter(Conversation.derniere_activite < limite_inactivite).all()
     for conversation in conversations_inactives:
         db.session.delete(conversation)
-    db.session.commit()
+    db.session.commit() 
 
 scheduler = BackgroundScheduler()
 scheduler.add_job(func=nettoyer_conversations_inactives, trigger="interval", days=1)  # Exécute tous les jours
