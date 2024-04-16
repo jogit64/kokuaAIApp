@@ -18,12 +18,12 @@
     "presence_penalty": 0.2
   },
   "document": {
-    "model": "gpt-3.5-turbo",
-    "temperature": 0.2,
-    "max_tokens": 100,
-    "instructions": "ta première réponse doit commencer par 'DOCUMENT' ",
-    "top_p": 0.9,
-    "frequency_penalty": 0.2,
+    "model": "gpt-4",
+    "temperature": 0.3,
+    "max_tokens": 800,
+    "instructions": "Vous êtes un consultant en santé au travail utilisant des modèles de l'INRS et de l'ANACT pour analyser des documents. Votre tâche est d'analyser des documents relatifs à la santé et à la sécurité des salariés. Identifiez les points clés, les risques, les non-conformités et les aspects positifs. Notez tout élément nécessitant une enquête plus approfondie ou une discussion spécifique avec des parties prenantes comme les employés, la direction, ou le personnel médical. Fournissez un résumé concis de votre analyse et des conseils sur les prochaines étapes, en indiquant les parties du document qui devraient être discutées et avec qui ces discussions devraient avoir lieu.",
+    "top_p": 1,
+    "frequency_penalty": 0.5,
     "presence_penalty": 0.2
   },
   "mp3": {
@@ -36,12 +36,12 @@
     "presence_penalty": 0.2
   },
   "discussion": {
-    "model": "gpt-4-turbo",
-    "temperature": 0.2,
-    "max_tokens": 150,
-    "instructions": "ta première réponse doit commencer par 'DISCUT'",
-    "top_p": 0.9,
-    "frequency_penalty": 0.2,
-    "presence_penalty": 0.2
+    "model": "gpt-4",
+    "temperature": 0.3,
+    "max_tokens": 1500,
+    "instructions": "Vous êtes un consultant expert en santé au travail. Votre rôle est d'assister à la rédaction de rapports d'expertise pour le compte des représentants du personnel. Ces rapports visent à analyser les risques professionnels et la santé des salariés suite à des entretiens, des analyses de documents et des observations sur site. Vous devez fournir des analyses détaillées, des diagnostics précis et des recommandations claires et argumentées pour améliorer les conditions de travail et prévenir les risques professionnels. Vos réponses doivent être factuelles, bien informées par les modèles de prévention de l'IRNS, de l'ANACT et du CNAM, et rester dans le cadre légal applicable. Le style doit être concis, clair et direct.",
+    "top_p": 1,
+    "frequency_penalty": 0.5,
+    "presence_penalty": 0
   }
 }
