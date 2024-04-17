@@ -166,7 +166,10 @@ def ask_question():
     return jsonify({"job_id": job.get_id()}), 202
 
 def process_ask_question(data):
-    with current_app.app_context():
+    # Obtention de l'instance de l'application Flask
+    app = current_app._get_current_object()
+
+    with app.app_context():
         app.logger.info("Début du traitement de la requête avec data: {}".format(data))
         try:
             # Chargement de la configuration GPT depuis un fichier JSON
