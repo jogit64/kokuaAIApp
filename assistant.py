@@ -157,7 +157,7 @@ def ask_question():
     if config_key not in gpt_configs:
         gpt_config = {
         "model": "gpt-3.5-turbo",
-        "temperature": 0.8,
+        "temperature": 0.2,
         "max_tokens": 500,
         "instructions": "Votre première réponse doit commencer par 'STAN :'",
         "top_p": 1,
