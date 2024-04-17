@@ -13,33 +13,32 @@ from flask_migrate import Migrate
 import uuid
 from datetime import datetime, timedelta
 from apscheduler.schedulers.background import BackgroundScheduler
-# from flask import Flask, session
 from flask_session import Session
-import redis
 from redis import Redis
 from rq import Queue
 import json
-
 
 app = Flask(__name__)
 app.config['SESSION_TYPE'] = 'redis'
 app.config['SESSION_PERMANENT'] = False
 app.config['SESSION_USE_SIGNER'] = True
 
-# Utilisez l'URL de Redis Cloud pour initialiser l'instance Redis.
+# Assurez-vous que l'URL de Redis Cloud est utilisée pour la session Redis
 redis_url = os.getenv('REDISCLOUD_URL')
-if not redis_url:
+if redis_url:
+    app.config['SESSION_REDIS'] = Redis.from_url(redis_url)
+else:
     raise ValueError("REDISCLOUD_URL is not set in the environment variables.")
+
+Session(app)
 
 r = Redis.from_url(redis_url)
 q = Queue(connection=r)
 
-Session(app)
-
 CORS(app, supports_credentials=True, origins=['https://kokua.fr', 'https://www.kokua.fr'])
-# CORS(app, supports_credentials=True, origins='*')
 
-app.secret_key = 'assistant-ai-1a-urrugne-64122'  
+app.secret_key = 'assistant-ai-1a-urrugne-64122'
+ 
 
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL').replace("://", "ql://", 1) # Remplacez pour corriger l'URL pour PostgreSQL
 # Exemple de configuration temporaire pour la génération des migrations
