@@ -191,10 +191,10 @@ def process_ask_question(data):
             session_id = data['session_id']
             conversation = Conversation.query.filter_by(session_id=session_id).first()
             if not conversation:
-                conversation = Conversation(session_id=session_id, last_activity=datetime.utcnow())
+                conversation = Conversation(session_id=session_id, derniere_activite=datetime.utcnow())
                 db.session.add(conversation)
             else:
-                conversation.last_activity = datetime.utcnow()
+                conversation.derniere_activite = datetime.utcnow()
             db.session.commit()
 
             # Traitement des messages et des fichiers téléchargés
