@@ -33,7 +33,7 @@ if not redis_url:
 
 redis_instance = Redis.from_url(redis_url)
 
-# Tester la connexion à Redis
+# Tester la connexion à Redis test
 try:
     redis_instance.ping()
     print("Connected to Redis successfully!")
