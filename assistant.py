@@ -27,11 +27,19 @@ app.config['SESSION_COOKIE_SECURE'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'None'
 
 # Utiliser Redis pour les sessions et les tâches en file d'attente
-redis_url = os.getenv('REDISCLOUD_URL', 'redis://localhost:6379')  # Utilisation d'un fallback pour le développement local
+redis_url = os.getenv('REDISCLOUD_URL')
 if not redis_url:
     raise RuntimeError("REDIS_URL not set in the environment variables.")
 
 redis_instance = Redis.from_url(redis_url)
+
+# Tester la connexion à Redis
+try:
+    redis_instance.ping()
+    print("Connected to Redis successfully!")
+except Exception as e:
+    print(f"Failed to connect to Redis: {str(e)}")
+
 app.config['SESSION_REDIS'] = redis_instance
 Session(app)
 
