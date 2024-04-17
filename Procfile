@@ -1,3 +1,4 @@
 web: gunicorn assistant:app
-worker: rq worker high default low
+worker: REDIS_URL=$(REDISCLOUD_URL) rq worker high default low
+
 

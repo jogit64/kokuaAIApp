@@ -19,33 +19,23 @@ from rq import Queue
 import json
 
 app = Flask(__name__)
-app.secret_key = 'assistant-ai-1a-urrugne-64122'
+app.secret_key = 'assistant-ai-1a-urrugne-64122'  # Assurez-vous de garder votre secret key sécurisée et unique
 app.config['SESSION_TYPE'] = 'redis'
 app.config['SESSION_PERMANENT'] = False
 app.config['SESSION_USE_SIGNER'] = True
 app.config['SESSION_COOKIE_SECURE'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'None'
 
-# Configuration de Redis pour les sessions et RQ
-redis_url = os.getenv('REDISCLOUD_URL', 'redis://localhost:6379')  # Fallback to localhost for development
+# Utiliser Redis pour les sessions et les tâches en file d'attente
+redis_url = os.getenv('REDISCLOUD_URL', 'redis://localhost:6379')  # Utilisation d'un fallback pour le développement local
 if not redis_url:
-    raise ValueError("REDISCLOUD_URL is not set in the environment variables.")
+    raise RuntimeError("REDIS_URL not set in the environment variables.")
 
 redis_instance = Redis.from_url(redis_url)
 app.config['SESSION_REDIS'] = redis_instance
 Session(app)
 
-# # Assurez-vous que l'URL de Redis Cloud est utilisée pour la session Redis
-# redis_url = os.getenv('REDISCLOUD_URL')
-# if redis_url:
-#     app.config['SESSION_REDIS'] = Redis.from_url(redis_url)
-# else:
-#     raise ValueError("REDISCLOUD_URL is not set in the environment variables.")
-
-# Session(app)
-
-r = Redis.from_url(redis_url)
-q = Queue(connection=r)
+q = Queue(connection=redis_instance)
 
 CORS(app, supports_credentials=True, origins=['https://kokua.fr', 'https://www.kokua.fr'])
 
