@@ -13,10 +13,16 @@ from flask_migrate import Migrate
 import uuid
 from datetime import datetime, timedelta
 from apscheduler.schedulers.background import BackgroundScheduler
-from flask import Flask, session
+# from flask import Flask, session
 from flask_session import Session
 import redis
+from redis import Redis
+from rq import Queue
 import json
+
+
+r = Redis()
+q = Queue(connection=r)
 
 app = Flask(__name__)
 app.config['SESSION_TYPE'] = 'redis'
@@ -67,6 +73,7 @@ class Message(db.Model):
 
 
 client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+
 
 
 def nettoyer_conversations_inactives():
@@ -129,6 +136,7 @@ def home():
 
 
 
+
 @app.route('/reset-session', methods=['POST'])
 def reset_session():
     session.pop('session_id', None)  # Supprime l'ID de session actuel
@@ -136,46 +144,30 @@ def reset_session():
 
 
 
-@app.route('/ask', methods=['POST'])
-@app.route('/ask', methods=['POST'])
-def ask_question():
-    # Charges les modèles et instructions GPT.
-    with open('gpt_config.json', 'r') as f:
-        gpt_configs = json.load(f)
 
-    
-    # Récupération de la valeur de config sélectionnée par l'utilisateur
-    config_key = request.form.get('config')
-    
-    # # Sélection de la configuration GPT basée sur la valeur de config
-    # if config_key not in gpt_configs:
-    #     return jsonify({"error": "Configuration non valide."}), 400
-    # gpt_config = gpt_configs[config_key]
-    
-    
-    # Sélection de la configuration GPT basée sur la valeur de config
-    if config_key not in gpt_configs:
-        gpt_config = {
-        "model": "gpt-3.5-turbo",
-        "temperature": 0.2,
-        "max_tokens": 500,
-        "instructions": "Votre première réponse doit commencer par 'STAN :'",
-        "top_p": 1,
-        "frequency_penalty": 0.5,
-        "presence_penalty": 0.5
-    }
 
-    else:
-        gpt_config = gpt_configs[config_key]
 
-    
-    # S'assure que session_id existe dans la session Flask, sinon en crée un nouveau.
-    if 'session_id' not in session:
-        session['session_id'] = str(uuid.uuid4())
+# ! mise en place de rq test
+def process_ask_question(data):
+    with current_app.app_context():
+        # Chargement de la configuration GPT depuis un fichier JSON
+        with open('gpt_config.json', 'r') as f:
+            gpt_configs = json.load(f)
+        
+        # Sélection de la configuration GPT basée sur la clé de configuration
+        config_key = data['config_key']
+        gpt_config = gpt_configs.get(config_key, {
+            "model": "gpt-3.5-turbo",
+            "temperature": 0.2,
+            "max_tokens": 500,
+            "instructions": "Votre première réponse doit commencer par 'STAN :'",
+            "top_p": 1,
+            "frequency_penalty": 0.5,
+            "presence_penalty": 0.5
+        })
 
-    session_id = session['session_id']
-
-    try:
+        # Gestion de la session et de la conversation
+        session_id = data['session_id']
         conversation = Conversation.query.filter_by(session_id=session_id).first()
         if not conversation:
             conversation = Conversation(session_id=session_id, derniere_activite=datetime.utcnow())
@@ -183,48 +175,24 @@ def ask_question():
         else:
             conversation.derniere_activite = datetime.utcnow()
         db.session.commit()
-    except Exception as e:
-        db.session.rollback()
-        app.logger.error(f"Erreur lors de la gestion de la conversation : {e}")
-        return jsonify({"error": "Un problème est survenu lors de la gestion de la conversation"}), 500
-    
-    question = request.form.get('question')
-    uploaded_file = request.files.get('file')
-    
-    # Ajout de l'instruction initiale spécifique au GPT
-    instructions_content = gpt_config['instructions']
-    instructions_message = Message(conversation_id=conversation.id, role="system", content=instructions_content)
-    db.session.add(instructions_message)
-    
-    # Traitement de la question de l'utilisateur
-    if question:
-        question_message = Message(conversation_id=conversation.id, role="user", content=question)
-        db.session.add(question_message)
 
-    # Traitement du fichier téléchargé
-    if uploaded_file and uploaded_file.filename:
-      if uploaded_file and uploaded_file.filename:
-        try:
-            file_content = read_file_content(uploaded_file)
-            uploaded_file_message = Message(conversation_id=conversation.id, role="user", content="Uploaded File: " + uploaded_file.filename)
-            db.session.add(uploaded_file_message)
+        # Traitement des messages et des fichiers téléchargés
+        question = data['question']
+        file_content = data['file_content']
+        if question:
+            question_message = Message(conversation_id=conversation.id, role="user", content=question)
+            db.session.add(question_message)
+        if file_content:
+            uploaded_file_message = Message(conversation_id=conversation.id, role="user", content="Uploaded File: Provided")
             file_content_message = Message(conversation_id=conversation.id, role="user", content=file_content)
+            db.session.add(uploaded_file_message)
             db.session.add(file_content_message)
-            db.session.commit()
-            # Continue processing and send to OpenAI
-        except ValueError as e:  # Catch the ValueError raised by read_file_content
-            return jsonify({"error": str(e)}), 400
-        except Exception as e:
-            return jsonify({"error": "Error processing file: " + str(e)}), 500
 
-    db.session.commit()
+        db.session.commit()
 
-    # Préparation des messages pour OpenAI
-    db_messages = Message.query.filter_by(conversation_id=conversation.id).all()
-    messages_for_openai = [{"role": msg.role, "content": msg.content} for msg in db_messages]
-
-    # Envoi à OpenAI et génération de la réponse
-    if question or uploaded_file:
+        # Préparation et envoi des données à OpenAI
+        db_messages = Message.query.filter_by(conversation_id=conversation.id).all()
+        messages_for_openai = [{"role": msg.role, "content": msg.content} for msg in db_messages]
         try:
             chat_completion = client.chat.completions.create(
                 model=gpt_config['model'],
@@ -237,18 +205,46 @@ def ask_question():
             )
             response_chatgpt = chat_completion.choices[0].message.content
 
+            # Enregistrement de la réponse de l'assistant
             response_message = Message(conversation_id=conversation.id, role="assistant", content=response_chatgpt)
             db.session.add(response_message)
             db.session.commit()
 
             response_html = markdown2.markdown(response_chatgpt)
             db.session.close()
-            return jsonify({"response": response_html})
+            return {"response": response_html}
         except Exception as e:
             app.logger.error(f"Erreur lors de la génération de la réponse : {e}")
-            return jsonify({"error": "Erreur lors de la génération de la réponse.", "details": str(e)}), 500
+            return {"error": "Erreur lors de la génération de la réponse.", "details": str(e)}
+
+
+
+@app.route('/ask', methods=['POST'])
+def ask_question():
+    # Récupère toutes les données nécessaires de la requête et les passe à la tâche
+    data = {
+        "config_key": request.form.get('config'),
+        "question": request.form.get('question'),
+        "session_id": session.get('session_id', str(uuid.uuid4())),
+        "file_content": read_file_content(request.files.get('file')) if request.files.get('file') else None
+    }
+
+
+    job = q.enqueue(process_ask_question, data)
+    return jsonify({"job_id": job.get_id()}), 202
+
+
+
+@app.route('/results/<job_id>', methods=['GET'])
+def get_results(job_id):
+    job = q.fetch_job(job_id)
+    if job.is_finished:
+        return jsonify(job.result), 200
+    elif job.is_failed:
+        return jsonify({"error": "La tâche a échoué", "details": str(job.exc_info)}), 500
     else:
-        return jsonify({"error": "Aucune question ou fichier fourni."}), 400
+        return jsonify({"status": "En cours..."}), 202
+
 
 if __name__ == '__main__':
     app.run(debug=True)
