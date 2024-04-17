@@ -166,9 +166,10 @@ def ask_question():
     return jsonify({"job_id": job.get_id()}), 202
 
 def process_ask_question(data):
-    # Obtention de l'instance de l'application Flask
-    app = current_app._get_current_object()
+    # Obtenir une instance de l'application Flask en utilisant un import direct
+    from your_flask_app_file import app  # Remplacez 'your_flask_app_file' par le nom du fichier où votre app Flask est initialisée
 
+    # Création explicite d'un contexte d'application
     with app.app_context():
         app.logger.info("Début du traitement de la requête avec data: {}".format(data))
         try:
