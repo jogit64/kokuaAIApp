@@ -44,7 +44,7 @@ Session(app)
 
 # Session(app)
 
-# r = Redis.from_url(redis_url)
+r = Redis.from_url(redis_url)
 q = Queue(connection=r)
 
 CORS(app, supports_credentials=True, origins=['https://kokua.fr', 'https://www.kokua.fr'])
