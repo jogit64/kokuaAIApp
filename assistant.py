@@ -208,7 +208,8 @@ def process_ask_question(data):
             return {"response": response_html}
         except Exception as e:
             app.logger.error(f"Erreur lors du traitement de la requête : {e}")
-            return {"error": "Erreur lors de la génération de la réponse.", "details": str(e)}
+            # return {"error": "Erreur lors de la génération de la réponse.", "details": str(e)}
+            raise  # Re-lancer l'exception pour que RQ puisse la capturer et marquer le job comme échoué
 
 def process_messages(data, conversation):
     if data['question']:
