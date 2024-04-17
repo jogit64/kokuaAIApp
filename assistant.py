@@ -147,10 +147,26 @@ def ask_question():
     # Récupération de la valeur de config sélectionnée par l'utilisateur
     config_key = request.form.get('config')
     
+    # # Sélection de la configuration GPT basée sur la valeur de config
+    # if config_key not in gpt_configs:
+    #     return jsonify({"error": "Configuration non valide."}), 400
+    # gpt_config = gpt_configs[config_key]
+    
+    
     # Sélection de la configuration GPT basée sur la valeur de config
     if config_key not in gpt_configs:
-        return jsonify({"error": "Configuration non valide."}), 400
-    gpt_config = gpt_configs[config_key]
+        gpt_config = {
+        "model": "gpt-3.5-turbo",
+        "temperature": 0.8,
+        "max_tokens": 500,
+        "instructions": "Votre première réponse doit commencer par 'STAN :'",
+        "top_p": 1,
+        "frequency_penalty": 0.5,
+        "presence_penalty": 0.5
+    }
+
+    else:
+        gpt_config = gpt_configs[config_key]
 
     
     # S'assure que session_id existe dans la session Flask, sinon en crée un nouveau.
