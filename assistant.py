@@ -19,25 +19,36 @@ from rq import Queue
 import json
 
 app = Flask(__name__)
+app.secret_key = 'assistant-ai-1a-urrugne-64122'
 app.config['SESSION_TYPE'] = 'redis'
 app.config['SESSION_PERMANENT'] = False
 app.config['SESSION_USE_SIGNER'] = True
+app.config['SESSION_COOKIE_SECURE'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'None'
 
-# Assurez-vous que l'URL de Redis Cloud est utilisée pour la session Redis
-redis_url = os.getenv('REDISCLOUD_URL')
-if redis_url:
-    app.config['SESSION_REDIS'] = Redis.from_url(redis_url)
-else:
+# Configuration de Redis pour les sessions et RQ
+redis_url = os.getenv('REDISCLOUD_URL', 'redis://localhost:6379')  # Fallback to localhost for development
+if not redis_url:
     raise ValueError("REDISCLOUD_URL is not set in the environment variables.")
 
+redis_instance = Redis.from_url(redis_url)
+app.config['SESSION_REDIS'] = redis_instance
 Session(app)
 
-r = Redis.from_url(redis_url)
+# # Assurez-vous que l'URL de Redis Cloud est utilisée pour la session Redis
+# redis_url = os.getenv('REDISCLOUD_URL')
+# if redis_url:
+#     app.config['SESSION_REDIS'] = Redis.from_url(redis_url)
+# else:
+#     raise ValueError("REDISCLOUD_URL is not set in the environment variables.")
+
+# Session(app)
+
+# r = Redis.from_url(redis_url)
 q = Queue(connection=r)
 
 CORS(app, supports_credentials=True, origins=['https://kokua.fr', 'https://www.kokua.fr'])
 
-app.secret_key = 'assistant-ai-1a-urrugne-64122'
  
 
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL').replace("://", "ql://", 1) # Remplacez pour corriger l'URL pour PostgreSQL
@@ -51,8 +62,6 @@ migrate = Migrate(app, db)
 
 
 
-app.config['SESSION_COOKIE_SECURE'] = True
-app.config['SESSION_COOKIE_SAMESITE'] = 'None'
 
 
 class Conversation(db.Model):
