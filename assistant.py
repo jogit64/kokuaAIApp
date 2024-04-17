@@ -167,7 +167,8 @@ def ask_question():
 
 def process_ask_question(data):
     # Obtenir une instance de l'application Flask en utilisant un import direct
-    from your_flask_app_file import app  # Remplacez 'your_flask_app_file' par le nom du fichier où votre app Flask est initialisée
+    from assistant import app
+    # Remplacez 'your_flask_app_file' par le nom du fichier où votre app Flask est initialisée
 
     # Création explicite d'un contexte d'application
     with app.app_context():
