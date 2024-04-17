@@ -146,92 +146,88 @@ def reset_session():
 
 
 # ! mise en place de rq test
-def process_ask_question(data):
-    with current_app.app_context():
-        # Chargement de la configuration GPT depuis un fichier JSON
-        with open('gpt_config.json', 'r') as f:
-            gpt_configs = json.load(f)
-        
-        # Sélection de la configuration GPT basée sur la clé de configuration
-        config_key = data['config_key']
-        gpt_config = gpt_configs.get(config_key, {
-            "model": "gpt-3.5-turbo",
-            "temperature": 0.2,
-            "max_tokens": 500,
-            "instructions": "Votre première réponse doit commencer par 'STAN :'",
-            "top_p": 1,
-            "frequency_penalty": 0.5,
-            "presence_penalty": 0.5
-        })
-
-        # Gestion de la session et de la conversation
-        session_id = data['session_id']
-        conversation = Conversation.query.filter_by(session_id=session_id).first()
-        if not conversation:
-            conversation = Conversation(session_id=session_id, derniere_activite=datetime.utcnow())
-            db.session.add(conversation)
-        else:
-            conversation.derniere_activite = datetime.utcnow()
-        db.session.commit()
-
-        # Traitement des messages et des fichiers téléchargés
-        question = data['question']
-        file_content = data['file_content']
-        if question:
-            question_message = Message(conversation_id=conversation.id, role="user", content=question)
-            db.session.add(question_message)
-        if file_content:
-            uploaded_file_message = Message(conversation_id=conversation.id, role="user", content="Uploaded File: Provided")
-            file_content_message = Message(conversation_id=conversation.id, role="user", content=file_content)
-            db.session.add(uploaded_file_message)
-            db.session.add(file_content_message)
-
-        db.session.commit()
-
-        # Préparation et envoi des données à OpenAI
-        db_messages = Message.query.filter_by(conversation_id=conversation.id).all()
-        messages_for_openai = [{"role": msg.role, "content": msg.content} for msg in db_messages]
-        try:
-            chat_completion = client.chat.completions.create(
-                model=gpt_config['model'],
-                messages=messages_for_openai,
-                temperature=gpt_config['temperature'],
-                max_tokens=gpt_config['max_tokens'],
-                top_p=gpt_config['top_p'],
-                frequency_penalty=gpt_config['frequency_penalty'],
-                presence_penalty=gpt_config['presence_penalty']
-            )
-            response_chatgpt = chat_completion.choices[0].message.content
-
-            # Enregistrement de la réponse de l'assistant
-            response_message = Message(conversation_id=conversation.id, role="assistant", content=response_chatgpt)
-            db.session.add(response_message)
-            db.session.commit()
-
-            response_html = markdown2.markdown(response_chatgpt)
-            db.session.close()
-            return {"response": response_html}
-        except Exception as e:
-            app.logger.error(f"Erreur lors de la génération de la réponse : {e}")
-            return {"error": "Erreur lors de la génération de la réponse.", "details": str(e)}
-
-
-
 @app.route('/ask', methods=['POST'])
 def ask_question():
-    # Récupère toutes les données nécessaires de la requête et les passe à la tâche
     data = {
-        "config_key": request.form.get('config'),
+        "config_key": request.form.get('config', 'default_config'),
         "question": request.form.get('question'),
         "session_id": session.get('session_id', str(uuid.uuid4())),
         "file_content": read_file_content(request.files.get('file')) if request.files.get('file') else None
     }
-
-
+    app.logger.info(f"Requête reçue à /ask avec données : {data}")
     job = q.enqueue(process_ask_question, data)
     return jsonify({"job_id": job.get_id()}), 202
 
+def process_ask_question(data):
+    with current_app.app_context():
+        app.logger.info("Début du traitement de la requête avec data: {}".format(data))
+        try:
+            # Chargement de la configuration GPT depuis un fichier JSON
+            with open('gpt_config.json', 'r') as f:
+                gpt_configs = json.load(f)
+            
+            gpt_config = gpt_configs.get(data.get('config_key'), {
+                "model": "gpt-3.5-turbo",
+                "temperature": 0.2,
+                "max_tokens": 500,
+                "instructions": "Votre première réponse doit commencer par 'STAN :'",
+                "top_p": 1,
+                "frequency_penalty": 0.5,
+                "presence_penalty": 0.5
+            })
 
+            session_id = data['session_id']
+            conversation = Conversation.query.filter_by(session_id=session_id).first()
+            if not conversation:
+                conversation = Conversation(session_id=session_id, last_activity=datetime.utcnow())
+                db.session.add(conversation)
+            else:
+                conversation.last_activity = datetime.utcnow()
+            db.session.commit()
+
+            # Traitement des messages et des fichiers téléchargés
+            process_messages(data, conversation)
+
+            # Préparation et envoi des données à OpenAI
+            db_messages = Message.query.filter_by(conversation_id=conversation.id).all()
+            messages_for_openai = [{"role": msg.role, "content": msg.content} for msg in db_messages]
+            response_html = handle_openai_request(gpt_config, messages_for_openai, conversation)
+            db.session.close()
+            return {"response": response_html}
+        except Exception as e:
+            app.logger.error(f"Erreur lors du traitement de la requête : {e}")
+            return {"error": "Erreur lors de la génération de la réponse.", "details": str(e)}
+
+def process_messages(data, conversation):
+    if data['question']:
+        question_message = Message(conversation_id=conversation.id, role="user", content=data['question'])
+        db.session.add(question_message)
+    if data.get('file_content'):
+        file_messages = [
+            Message(conversation_id=conversation.id, role="user", content="Uploaded File: Provided"),
+            Message(conversation_id=conversation.id, role="user", content=data['file_content'])
+        ]
+        db.session.extend(file_messages)
+    db.session.commit()
+
+def handle_openai_request(gpt_config, messages_for_openai, conversation):
+    chat_completion = client.chat.completions.create(
+        model=gpt_config['model'],
+        messages=messages_for_openai,
+        temperature=gpt_config['temperature'],
+        max_tokens=gpt_config['max_tokens'],
+        top_p=gpt_config['top_p'],
+        frequency_penalty=gpt_config['frequency_penalty'],
+        presence_penalty=gpt_config['presence_penalty']
+    )
+    response_chatgpt = chat_completion.choices[0].message.content
+
+    # Enregistrement de la réponse de l'assistant
+    response_message = Message(conversation_id=conversation.id, role="assistant", content=response_chatgpt)
+    db.session.add(response_message)
+    db.session.commit()
+
+    return markdown2.markdown(response_chatgpt)
 
 @app.route('/results/<job_id>', methods=['GET'])
 def get_results(job_id):
@@ -243,6 +239,6 @@ def get_results(job_id):
     else:
         return jsonify({"status": "En cours..."}), 202
 
-
 if __name__ == '__main__':
+    db.init_app(app)
     app.run(debug=True)
