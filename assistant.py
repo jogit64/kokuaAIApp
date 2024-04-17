@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, session, make_response
+from flask import Flask, render_template, request, jsonify, session, make_response, current_app
 from openai import OpenAI
 import os
 from flask_cors import CORS
