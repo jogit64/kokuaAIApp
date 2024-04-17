@@ -244,12 +244,14 @@ def handle_openai_request(gpt_config, messages_for_openai, conversation):
 @app.route('/results/<job_id>', methods=['GET'])
 def get_results(job_id):
     job = q.fetch_job(job_id)
+    if not job:
+        return jsonify({"error": "Job not found"}), 404
     if job.is_finished:
         return jsonify(job.result), 200
     elif job.is_failed:
-        return jsonify({"error": "La tâche a échoué", "details": str(job.exc_info)}), 500
+        return jsonify({"error": "Job failed", "details": job.exc_info}), 500
     else:
-        return jsonify({"status": "En cours..."}), 202
+        return jsonify({"status": "Still processing"}), 202
 
 if __name__ == '__main__':
     db.init_app(app)
