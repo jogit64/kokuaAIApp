@@ -21,19 +21,18 @@ from rq import Queue
 import json
 
 
-r = Redis()
-q = Queue(connection=r)
-
 app = Flask(__name__)
 app.config['SESSION_TYPE'] = 'redis'
 app.config['SESSION_PERMANENT'] = False
 app.config['SESSION_USE_SIGNER'] = True
 
-redis_url = os.environ.get('REDISCLOUD_URL')
-if redis_url:
-    app.config['SESSION_REDIS'] = redis.from_url(redis_url)
-else:
+# Utilisez l'URL de Redis Cloud pour initialiser l'instance Redis.
+redis_url = os.getenv('REDISCLOUD_URL')
+if not redis_url:
     raise ValueError("REDISCLOUD_URL is not set in the environment variables.")
+
+r = Redis.from_url(redis_url)
+q = Queue(connection=r)
 
 Session(app)
 
