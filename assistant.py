@@ -173,26 +173,21 @@ def process_ask_question(data):
     # Création explicite d'un contexte d'application
     with app.app_context():
         app.logger.info("Début du traitement de la requête avec data: {}".format(data))
-              
         try:
+            # Chargement de la configuration GPT depuis un fichier JSON
             with open('gpt_config.json', 'r') as f:
                 gpt_configs = json.load(f)
-
-            config_key = data.get('config_key', 'default_config')
             
-            if config_key not in gpt_configs:
-                app.logger.info(f"Configuration key '{config_key}' is not valid. Using default configuration.")
-                gpt_config = {
-                    "model": "gpt-3.5-turbo",
-                    "temperature": 0.1,
-                    "max_tokens": 500,
-                    "instructions": "Votre première réponse doit commencer par 'STAN :'",
-                    "top_p": 0.2,
-                    "frequency_penalty": 0.2,
-                    "presence_penalty": 0.2
-                }
-            else:
-                gpt_config = gpt_configs[config_key]
+            gpt_config = gpt_configs.get(data.get('config_key'), {
+                "model": "gpt-3.5-turbo",
+                "temperature": 0.1,
+                "max_tokens": 500,
+                "instructions": "Votre première réponse doit commencer par 'STAN :'",
+                "top_p": 0.2,
+                "frequency_penalty": 0.2,
+                "presence_penalty": 0.2
+            })
+            
 
             session_id = data['session_id']
             conversation = Conversation.query.filter_by(session_id=session_id).first()
