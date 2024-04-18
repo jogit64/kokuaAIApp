@@ -247,19 +247,28 @@ def get_results(job_id):
     job = q.fetch_job(job_id)
     if not job:
         return jsonify({"error": "Job not found"}), 404
+
     if job.is_finished:
-        try:
-            # Assumer que job.result est une chaîne JSON et essayer de la décoder
-            result_data = json.loads(job.result)
-            response_content = result_data.get('response') if isinstance(result_data, dict) and 'response' in result_data else "Réponse mal formatée"
-            return jsonify({"status": "finished", "response": response_content}), 200
-        except json.JSONDecodeError:
-            # Gérer le cas où job.result n'est pas un JSON valide
-            return jsonify({"status": "finished", "response": "Erreur de décodage du résultat"}), 200
+        # Vérifiez si job.result est une chaîne ou un dictionnaire
+        if isinstance(job.result, str):
+            try:
+                result_data = json.loads(job.result)  # Désérialisation si c'est une chaîne
+            except json.JSONDecodeError as e:
+                return jsonify({"status": "error", "message": "Invalid JSON data", "details": str(e)}), 500
+        elif isinstance(job.result, dict):
+            result_data = job.result  # Utilisation directe si c'est déjà un dictionnaire
+        else:
+            return jsonify({"status": "error", "message": "Unexpected data type"}), 500
+        
+        response_content = result_data.get('response') if 'response' in result_data else "No response found"
+        return jsonify({"status": "finished", "response": response_content}), 200
+
     elif job.is_failed:
         return jsonify({"status": "failed", "error": "Job failed", "details": str(job.exc_info)}), 500
+
     else:
         return jsonify({"status": "processing"}), 202
+
 
 
 if __name__ == '__main__':
