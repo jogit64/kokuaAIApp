@@ -173,7 +173,7 @@ def process_ask_question(data):
     # Création explicite d'un contexte d'application
     with app.app_context():
         app.logger.info("Début du traitement de la requête avec data: {}".format(data))
-       try:
+    try:
             with open('gpt_config.json', 'r') as f:
                 gpt_configs = json.load(f)
 
@@ -213,7 +213,8 @@ def process_ask_question(data):
             response_html = handle_openai_request(gpt_config, messages_for_openai, conversation)
             db.session.close()
             return {"response": response_html}
-        except Exception as e:
+        
+    except Exception as e:
             app.logger.error(f"Erreur lors du traitement de la requête : {e}")
             # return {"error": "Erreur lors de la génération de la réponse.", "details": str(e)}
             raise  # Re-lancer l'exception pour que RQ puisse la capturer et marquer le job comme échoué
