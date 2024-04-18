@@ -223,6 +223,7 @@ def process_messages(data, conversation):
         db.session.extend(file_messages)
     db.session.commit()
 
+
 def handle_openai_request(gpt_config, messages_for_openai, conversation):
     app.logger.info(f"Sending request to OpenAI with config: {gpt_config}")  # Log la configuration utilisée
     chat_completion = client.chat.completions.create(
