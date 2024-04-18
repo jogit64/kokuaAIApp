@@ -248,13 +248,14 @@ def get_results(job_id):
     if not job:
         return jsonify({"error": "Job not found"}), 404
     if job.is_finished:
-        # Supposons que job.result contienne un JSON sous forme de chaîne qui nécessite un traitement supplémentaire
-        result_data = json.loads(job.result)  # Décodez le JSON si nécessaire
-        if 'response' in result_data:
-            response_content = result_data['response']
-        else:
-            response_content = "Aucune réponse trouvée dans le résultat du job."
-        return jsonify({"status": "finished", "response": response_content}), 200
+        try:
+            # Assumer que job.result est une chaîne JSON et essayer de la décoder
+            result_data = json.loads(job.result)
+            response_content = result_data.get('response') if isinstance(result_data, dict) and 'response' in result_data else "Réponse mal formatée"
+            return jsonify({"status": "finished", "response": response_content}), 200
+        except json.JSONDecodeError:
+            # Gérer le cas où job.result n'est pas un JSON valide
+            return jsonify({"status": "finished", "response": "Erreur de décodage du résultat"}), 200
     elif job.is_failed:
         return jsonify({"status": "failed", "error": "Job failed", "details": str(job.exc_info)}), 500
     else:
