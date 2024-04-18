@@ -180,12 +180,12 @@ def process_ask_question(data):
             
             gpt_config = gpt_configs.get(data.get('config_key'), {
                 "model": "gpt-3.5-turbo",
-                "temperature": 0.2,
+                "temperature": 0.1,
                 "max_tokens": 500,
                 "instructions": "Votre première réponse doit commencer par 'STAN :'",
-                "top_p": 1,
-                "frequency_penalty": 0.5,
-                "presence_penalty": 0.5
+                "top_p": 0.2,
+                "frequency_penalty": 0.2,
+                "presence_penalty": 0.2
             })
 
             session_id = data['session_id']
