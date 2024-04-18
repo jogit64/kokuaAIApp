@@ -173,14 +173,15 @@ def process_ask_question(data):
     # Création explicite d'un contexte d'application
     with app.app_context():
         app.logger.info("Début du traitement de la requête avec data: {}".format(data))
-    try:
+       with app.app_context():  # S'assurer que toutes les opérations sont couvertes par le contexte
+        app.logger.info("Début du traitement de la requête avec data: {}".format(data))
+        
+        try:
             with open('gpt_config.json', 'r') as f:
                 gpt_configs = json.load(f)
 
-            # Récupération ou assignation de la valeur par défaut pour 'config_key'
             config_key = data.get('config_key', 'default_config')
             
-            # Vérification si la clé de configuration existe dans le fichier JSON
             if config_key not in gpt_configs:
                 app.logger.info(f"Configuration key '{config_key}' is not valid. Using default configuration.")
                 gpt_config = {
@@ -213,8 +214,7 @@ def process_ask_question(data):
             response_html = handle_openai_request(gpt_config, messages_for_openai, conversation)
             db.session.close()
             return {"response": response_html}
-        
-    except Exception as e:
+        except Exception as e:
             app.logger.error(f"Erreur lors du traitement de la requête : {e}")
             # return {"error": "Erreur lors de la génération de la réponse.", "details": str(e)}
             raise  # Re-lancer l'exception pour que RQ puisse la capturer et marquer le job comme échoué
