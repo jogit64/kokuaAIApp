@@ -169,31 +169,15 @@ def ask_question():
     return jsonify({"job_id": job.get_id()}), 202
 
 def process_ask_question(data):
-    # Obtenir une instance de l'application Flask en utilisant un import direct
-    from assistant import app
-    # Remplacez 'your_flask_app_file' par le nom du fichier où votre app Flask est initialisée
-
-    # Création explicite d'un contexte d'application
     with app.app_context():
         try:
-            config_path = 'gpt_config.json'  # Assurez-vous que le chemin est correct
-            if not os.path.exists(config_path):
-                app.logger.error(f"Le fichier de configuration {config_path} n'existe pas.")
-                raise FileNotFoundError(f"Le fichier de configuration {config_path} n'est pas trouvé.")
-
+            # Chargement de la configuration GPT
+            config_path = 'gpt_config.json'
             with open(config_path, 'r') as f:
                 gpt_configs = json.load(f)
-            
-            gpt_config = gpt_configs.get(data.get('config_key'), {
-                "model": "gpt-3.5-turbo",
-                "temperature": 0.0,
-                "max_tokens": 500,
-                "instructions": "Votre première réponse doit commencer par 'STAN :'",
-                "top_p": 0.1,
-                "frequency_penalty": 0,
-                "presence_penalty": 0
-            })
+            gpt_config = gpt_configs.get(data.get('config_key'))
 
+            # Récupération ou création de la conversation
             session_id = data['session_id']
             conversation = Conversation.query.filter_by(session_id=session_id).first()
             if not conversation:
@@ -201,26 +185,29 @@ def process_ask_question(data):
                 db.session.add(conversation)
             else:
                 conversation.derniere_activite = datetime.utcnow()
+
+            # Ajout de l'instruction système
+            instructions_content = gpt_config['instructions']
+            instructions_message = Message(conversation_id=conversation.id, role="system", content=instructions_content)
+            db.session.add(instructions_message)
+
+            # Ajout de la question de l'utilisateur
+            if data['question']:
+                question_message = Message(conversation_id=conversation.id, role="user", content=data['question'])
+                db.session.add(question_message)
+
             db.session.commit()
 
-            # Traitement des messages et des fichiers téléchargés
-            process_messages(data, conversation)
-
-            # Préparation et envoi des données à OpenAI
+            # Préparation des messages pour OpenAI
             db_messages = Message.query.filter_by(conversation_id=conversation.id).all()
             messages_for_openai = [{"role": msg.role, "content": msg.content} for msg in db_messages]
             response_html = handle_openai_request(gpt_config, messages_for_openai, conversation)
             db.session.close()
             return {"response": response_html}
-        except FileNotFoundError as e:
-            app.logger.error(f"Erreur de fichier non trouvé : {e}")
-            raise
-        except json.JSONDecodeError as e:
-            app.logger.error(f"Erreur de décodage JSON : {e}")
-            raise
         except Exception as e:
             app.logger.error(f"Erreur lors du traitement de la requête : {e}")
             raise
+
 
 def process_messages(data, conversation):
     if data['question']:
