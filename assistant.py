@@ -183,30 +183,25 @@ def process_ask_question(data):
             if not conversation:
                 conversation = Conversation(session_id=session_id, derniere_activite=datetime.utcnow())
                 db.session.add(conversation)
-            else:
-                conversation.derniere_activite = datetime.utcnow()
+                db.session.commit()  # Commit ici pour s'assurer que l'ID de la conversation est généré
 
-            # Ajout de l'instruction système
+            # Ajout de l'instruction système et de la question de l'utilisateur
             instructions_content = gpt_config['instructions']
             instructions_message = Message(conversation_id=conversation.id, role="system", content=instructions_content)
+            question_message = Message(conversation_id=conversation.id, role="user", content=data['question'])
             db.session.add(instructions_message)
-
-            # Ajout de la question de l'utilisateur
-            if data['question']:
-                question_message = Message(conversation_id=conversation.id, role="user", content=data['question'])
-                db.session.add(question_message)
-
-            db.session.commit()
+            db.session.add(question_message)
+            db.session.commit()  # Commit après l'ajout des messages
 
             # Préparation des messages pour OpenAI
             db_messages = Message.query.filter_by(conversation_id=conversation.id).all()
             messages_for_openai = [{"role": msg.role, "content": msg.content} for msg in db_messages]
             response_html = handle_openai_request(gpt_config, messages_for_openai, conversation)
-            db.session.close()
             return {"response": response_html}
         except Exception as e:
             app.logger.error(f"Erreur lors du traitement de la requête : {e}")
             raise
+
 
 
 def process_messages(data, conversation):
