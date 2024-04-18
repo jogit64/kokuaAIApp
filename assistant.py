@@ -187,7 +187,6 @@ def process_ask_question(data):
                 "frequency_penalty": 0.2,
                 "presence_penalty": 0.2
             })
-            
 
             session_id = data['session_id']
             conversation = Conversation.query.filter_by(session_id=session_id).first()
@@ -213,16 +212,6 @@ def process_ask_question(data):
             raise  # Re-lancer l'exception pour que RQ puisse la capturer et marquer le job comme échoué
 
 def process_messages(data, conversation):
-    # Chargement de la configuration depuis le fichier JSON
-    with open('gpt_config.json', 'r') as f:
-        gpt_configs = json.load(f)
-    gpt_config = gpt_configs.get(data['config_key'])
-
-    # Ajout de l'instruction initiale au début de la conversation si nécessaire
-    instructions_content = gpt_config['instructions']
-    instruction_message = Message(conversation_id=conversation.id, role="system", content=instructions_content)
-    db.session.add(instruction_message)
-
     if data['question']:
         question_message = Message(conversation_id=conversation.id, role="user", content=data['question'])
         db.session.add(question_message)
@@ -233,7 +222,6 @@ def process_messages(data, conversation):
         ]
         db.session.extend(file_messages)
     db.session.commit()
-
 
 def handle_openai_request(gpt_config, messages_for_openai, conversation):
     app.logger.info(f"Sending request to OpenAI with config: {gpt_config}")  # Log la configuration utilisée
