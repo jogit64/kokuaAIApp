@@ -200,9 +200,15 @@ def process_ask_question(data):
             # Ajout de l'instruction système et de la question de l'utilisateur
             instructions_content = gpt_config['instructions']
             instructions_message = Message(conversation_id=conversation.id, role="system", content=instructions_content)
-            question_message = Message(conversation_id=conversation.id, role="user", content=data['question'])
+
+            # Vérifier que 'question' contient une valeur avant de créer le message
+            if data.get('question'):  # Ajouter cette vérification
+                question_message = Message(conversation_id=conversation.id, role="user", content=data['question'])
+                db.session.add(question_message)
+
+            # question_message = Message(conversation_id=conversation.id, role="user", content=data['question'])
             db.session.add(instructions_message)
-            db.session.add(question_message)
+            # db.session.add(question_message)
             db.session.commit()  # Commit après l'ajout des messages
 
             # Préparation des messages pour OpenAI
