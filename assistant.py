@@ -17,6 +17,9 @@ from flask_session import Session
 from redis import Redis
 from rq import Queue
 import json
+import logging
+
+logging.basicConfig(level=logging.INFO)
 
 app = Flask(__name__)
 app.secret_key = 'assistant-ai-1a-urrugne-64122'  # Assurez-vous de garder votre secret key sécurisée et unique
@@ -244,7 +247,7 @@ def handle_openai_request(gpt_config, messages_for_openai, conversation):
         presence_penalty=gpt_config['presence_penalty']
     )
     response_chatgpt = chat_completion.choices[0].message.content
-
+    app.logger.info(f"OpenAI Response: {response_chatgpt}")  # Log la réponse d'OpenAI
     # Enregistrement de la réponse de l'assistant
     response_message = Message(conversation_id=conversation.id, role="assistant", content=response_chatgpt)
     db.session.add(response_message)
