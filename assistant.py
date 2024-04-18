@@ -173,9 +173,7 @@ def process_ask_question(data):
     # Création explicite d'un contexte d'application
     with app.app_context():
         app.logger.info("Début du traitement de la requête avec data: {}".format(data))
-       with app.app_context():  # S'assurer que toutes les opérations sont couvertes par le contexte
-        app.logger.info("Début du traitement de la requête avec data: {}".format(data))
-        
+              
         try:
             with open('gpt_config.json', 'r') as f:
                 gpt_configs = json.load(f)
