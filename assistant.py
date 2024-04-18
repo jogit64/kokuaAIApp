@@ -175,7 +175,19 @@ def process_ask_question(data):
             config_path = 'gpt_config.json'
             with open(config_path, 'r') as f:
                 gpt_configs = json.load(f)
-            gpt_config = gpt_configs.get(data.get('config_key'))
+
+
+            # gpt_config = gpt_configs.get(data.get('config_key'))
+            # Tentative de récupération de la configuration spécifiée ou utilisation de la configuration par défaut
+            gpt_config = gpt_configs.get(data.get('config_key'), {
+                "model": "gpt-3.5-turbo",
+                "temperature": 0.0,
+                "max_tokens": 500,
+                "instructions": "Votre première réponse doit commencer par 'STAN :'",
+                "top_p": 0.1,
+                "frequency_penalty": 0,
+                "presence_penalty": 0
+            })
 
             # Récupération ou création de la conversation
             session_id = data['session_id']
