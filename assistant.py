@@ -172,10 +172,13 @@ def process_ask_question(data):
 
     # Création explicite d'un contexte d'application
     with app.app_context():
-        app.logger.info("Début du traitement de la requête avec data: {}".format(data))
         try:
-            # Chargement de la configuration GPT depuis un fichier JSON
-            with open('gpt_config.json', 'r') as f:
+            config_path = 'gpt_config.json'  # Assurez-vous que le chemin est correct
+            if not os.path.exists(config_path):
+                app.logger.error(f"Le fichier de configuration {config_path} n'existe pas.")
+                raise FileNotFoundError(f"Le fichier de configuration {config_path} n'est pas trouvé.")
+
+            with open(config_path, 'r') as f:
                 gpt_configs = json.load(f)
             
             gpt_config = gpt_configs.get(data.get('config_key'), {
@@ -206,10 +209,15 @@ def process_ask_question(data):
             response_html = handle_openai_request(gpt_config, messages_for_openai, conversation)
             db.session.close()
             return {"response": response_html}
+        except FileNotFoundError as e:
+            app.logger.error(f"Erreur de fichier non trouvé : {e}")
+            raise
+        except json.JSONDecodeError as e:
+            app.logger.error(f"Erreur de décodage JSON : {e}")
+            raise
         except Exception as e:
             app.logger.error(f"Erreur lors du traitement de la requête : {e}")
-            # return {"error": "Erreur lors de la génération de la réponse.", "details": str(e)}
-            raise  # Re-lancer l'exception pour que RQ puisse la capturer et marquer le job comme échoué
+            raise
 
 def process_messages(data, conversation):
     if data['question']:
