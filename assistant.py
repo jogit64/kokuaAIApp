@@ -159,7 +159,7 @@ def reset_session():
 @app.route('/ask', methods=['POST'])
 def ask_question():
     data = {
-        "config_key": request.form.get('config', 'default_config'),
+        "config_key": request.form.get('config_key', 'default_config'),
         "question": request.form.get('question'),
         "session_id": session.get('session_id', str(uuid.uuid4())),
         "file_content": read_file_content(request.files.get('file')) if request.files.get('file') else None
