@@ -244,7 +244,8 @@ def handle_openai_request(gpt_config, messages_for_openai, conversation):
         max_tokens=gpt_config['max_tokens'],
         top_p=gpt_config['top_p'],
         frequency_penalty=gpt_config['frequency_penalty'],
-        presence_penalty=gpt_config['presence_penalty']
+        presence_penalty=gpt_config['presence_penalty'],
+         instructions=gpt_config['instructions']
     )
     response_chatgpt = chat_completion.choices[0].message.content
     app.logger.info(f"OpenAI Response: {response_chatgpt}")  # Log la réponse d'OpenAI
