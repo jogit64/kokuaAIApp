@@ -158,6 +158,12 @@ def reset_session():
 # ! mise en place de rq test
 @app.route('/ask', methods=['POST'])
 def ask_question():
+
+
+    session_id = session.get('session_id', str(uuid.uuid4()))
+    session['session_id'] = session_id  # Assurez-vous que l'ID de session est bien conservé dans la session
+
+
     data = {
         "config_key": request.form.get('config_key', 'default_config'),  
         "question": request.form.get('question'),
@@ -166,7 +172,8 @@ def ask_question():
     }
     app.logger.info(f"Requête reçue à /ask avec données : {data}")
     job = q.enqueue(process_ask_question, data)
-    return jsonify({"job_id": job.get_id()}), 202
+    # return jsonify({"job_id": job.get_id()}), 202
+    return jsonify({"job_id": job.get_id(), "session_id": session_id}), 202
 
 def process_ask_question(data):
     with app.app_context():
