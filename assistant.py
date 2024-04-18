@@ -248,11 +248,12 @@ def get_results(job_id):
     if not job:
         return jsonify({"error": "Job not found"}), 404
     if job.is_finished:
-        return jsonify(job.result), 200
+        return jsonify({"status": "finished", "response": job.result}), 200
     elif job.is_failed:
-        return jsonify({"error": "Job failed", "details": job.exc_info}), 500
+        return jsonify({"status": "failed", "error": "Job failed", "details": str(job.exc_info)}), 500
     else:
-        return jsonify({"status": "Still processing"}), 202
+        return jsonify({"status": "processing"}), 202
+
 
 if __name__ == '__main__':
     db.init_app(app)
