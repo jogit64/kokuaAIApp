@@ -155,39 +155,44 @@ def reset_session():
 # ! mise en place de rq test
 @app.route('/ask', methods=['POST'])
 def ask_question():
+    # Charge les configurations GPT depuis le fichier
+    try:
+        with open('gpt_config.json', 'r') as f:
+            gpt_configs = json.load(f)
+    except FileNotFoundError:
+        app.logger.error("File gpt_config.json not found.")
+        return jsonify({"error": "Configuration file not found."}), 500
+
+    # Obtient la clé de configuration depuis la requête ou utilise la configuration par défaut
+    config_key = request.form.get('config', 'default_config')
+    gpt_config = gpt_configs.get(config_key, {
+        "model": "gpt-3.5-turbo",
+        "temperature": 0.1,
+        "max_tokens": 500,
+        "instructions": "Votre première réponse doit commencer par 'STAN :'",
+        "top_p": 0.2,
+        "frequency_penalty": 0.2,
+        "presence_penalty": 0.2
+    })
+
+    # Prépare les données pour la requête
     data = {
-        "config_key": request.form.get('config', 'default_config'),
+        "config_key": config_key,
         "question": request.form.get('question'),
         "session_id": session.get('session_id', str(uuid.uuid4())),
         "file_content": read_file_content(request.files.get('file')) if request.files.get('file') else None
     }
-    app.logger.info(f"Requête reçue à /ask avec données : {data}")
-    job = q.enqueue(process_ask_question, data)
+    app.logger.info(f"Request received at /ask with data: {data}")
+
+    # Enqueue the job for asynchronous processing
+    job = Queue(connection=db.connection).enqueue('path_to_process_ask_question_function', data)
+
     return jsonify({"job_id": job.get_id()}), 202
 
 def process_ask_question(data):
-    # Obtenir une instance de l'application Flask en utilisant un import direct
-    from assistant import app
-    # Remplacez 'your_flask_app_file' par le nom du fichier où votre app Flask est initialisée
-
-    # Création explicite d'un contexte d'application
     with app.app_context():
-        app.logger.info("Début du traitement de la requête avec data: {}".format(data))
         try:
-            # Chargement de la configuration GPT depuis un fichier JSON
-            with open('gpt_config.json', 'r') as f:
-                gpt_configs = json.load(f)
-            
-            gpt_config = gpt_configs.get(data.get('config_key'), {
-                "model": "gpt-3.5-turbo",
-                "temperature": 0.1,
-                "max_tokens": 500,
-                "instructions": "Votre première réponse doit commencer par 'STAN :'",
-                "top_p": 0.2,
-                "frequency_penalty": 0.2,
-                "presence_penalty": 0.2
-            })
-
+            # Récupère ou crée la conversation associée à session_id
             session_id = data['session_id']
             conversation = Conversation.query.filter_by(session_id=session_id).first()
             if not conversation:
@@ -197,19 +202,20 @@ def process_ask_question(data):
                 conversation.derniere_activite = datetime.utcnow()
             db.session.commit()
 
-            # Traitement des messages et des fichiers téléchargés
+            # Gère les messages utilisateur et fichiers téléchargés
             process_messages(data, conversation)
 
-            # Préparation et envoi des données à OpenAI
+            # Prépare les messages pour OpenAI et envoie la requête
             db_messages = Message.query.filter_by(conversation_id=conversation.id).all()
             messages_for_openai = [{"role": msg.role, "content": msg.content} for msg in db_messages]
-            response_html = handle_openai_request(gpt_config, messages_for_openai, conversation)
+            response_html = handle_openai_request(data['gpt_config'], messages_for_openai, conversation)
             db.session.close()
+
             return {"response": response_html}
         except Exception as e:
-            app.logger.error(f"Erreur lors du traitement de la requête : {e}")
-            # return {"error": "Erreur lors de la génération de la réponse.", "details": str(e)}
+            app.logger.error(f"Error processing the request: {e}")
             raise  # Re-lancer l'exception pour que RQ puisse la capturer et marquer le job comme échoué
+
 
 def process_messages(data, conversation):
     if data['question']:
