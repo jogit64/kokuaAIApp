@@ -171,14 +171,10 @@ def ask_question():
 def process_ask_question(data):
     with app.app_context():
         try:
-            # Chargement de la configuration GPT
             config_path = 'gpt_config.json'
             with open(config_path, 'r') as f:
                 gpt_configs = json.load(f)
 
-
-            # gpt_config = gpt_configs.get(data.get('config_key'))
-            # Tentative de récupération de la configuration spécifiée ou utilisation de la configuration par défaut
             gpt_config = gpt_configs.get(data.get('config_key'), {
                 "model": "gpt-3.5-turbo",
                 "temperature": 0.0,
@@ -189,27 +185,26 @@ def process_ask_question(data):
                 "presence_penalty": 0
             })
 
-            # Récupération ou création de la conversation
             session_id = data['session_id']
             conversation = Conversation.query.filter_by(session_id=session_id).first()
             if not conversation:
                 conversation = Conversation(session_id=session_id, derniere_activite=datetime.utcnow())
                 db.session.add(conversation)
-                db.session.commit()  # Commit ici pour s'assurer que l'ID de la conversation est généré
+                db.session.commit()
 
-            # Ajout de l'instruction système et de la question de l'utilisateur
             instructions_content = gpt_config['instructions']
             instructions_message = Message(conversation_id=conversation.id, role="system", content=instructions_content)
+            db.session.add(instructions_message)
 
-            # Vérifier que 'question' contient une valeur avant de créer le message
-            if data.get('question'):  # Ajouter cette vérification
+            if data.get('question'):
                 question_message = Message(conversation_id=conversation.id, role="user", content=data['question'])
                 db.session.add(question_message)
 
-            # question_message = Message(conversation_id=conversation.id, role="user", content=data['question'])
-            db.session.add(instructions_message)
-            # db.session.add(question_message)
-            db.session.commit()  # Commit après l'ajout des messages
+            if data.get('file_content'):
+                file_content_message = Message(conversation_id=conversation.id, role="user", content=data['file_content'])
+                db.session.add(file_content_message)
+
+            db.session.commit()
 
             # Préparation des messages pour OpenAI
             db_messages = Message.query.filter_by(conversation_id=conversation.id).all()
@@ -219,6 +214,7 @@ def process_ask_question(data):
         except Exception as e:
             app.logger.error(f"Erreur lors du traitement de la requête : {e}")
             raise
+
 
 
 
