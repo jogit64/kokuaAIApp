@@ -281,6 +281,21 @@ def get_results(job_id):
 
 
 
+
+@app.route('/conversation/<session_id>', methods=['GET'])
+def get_conversation(session_id):
+    conversation = Conversation.query.filter_by(session_id=session_id).first()
+    if conversation:
+        return jsonify({
+            "session_id": conversation.session_id,
+            "last_activity": conversation.derniere_activite,
+            "messages": [{"id": msg.id, "content": msg.content, "role": msg.role} for msg in conversation.messages]
+        }), 200
+    else:
+        return jsonify({"error": "Conversation not found"}), 404
+
+
+
 if __name__ == '__main__':
     db.init_app(app)
     app.run(debug=True)
