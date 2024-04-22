@@ -303,6 +303,23 @@ def get_conversation(session_id):
 
 
 
+@app.route('/ask_sync', methods=['POST'])
+def ask_question_sync():
+    session_id = session.get('session_id', str(uuid.uuid4()))
+    session['session_id'] = session_id  # Assurez-vous que l'ID de session est bien conservé dans la session
+
+    data = {
+        "config_key": request.form.get('config_key', 'default_config'),  
+        "question": request.form.get('question'),
+        "session_id": session.get('session_id', str(uuid.uuid4())),
+        "file_content": read_file_content(request.files.get('file')) if request.files.get('file') else None
+    }
+    app.logger.info(f"Requête reçue à /ask_sync avec données : {data}")
+
+    response_data = process_ask_question(data)
+    return jsonify({"response": response_data['response'], "session_id": session_id}), 200
+
+
 if __name__ == '__main__':
     db.init_app(app)
     app.run(debug=True)
