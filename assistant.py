@@ -156,23 +156,23 @@ def reset_session():
 
 
 # ! mise en place de rq test
+from flask import request
+
 @app.route('/ask', methods=['POST'])
 def ask_question():
-
-
     session_id = session.get('session_id', str(uuid.uuid4()))
-    session['session_id'] = session_id  # Assurez-vous que l'ID de session est bien conservé dans la session
+    session['session_id'] = session_id
 
- 
+    file_content = read_file_content(request.files['file']) if request.files.get('file') else None
+
     data = {
-        "config_key": request.form.get('config_key', 'default_config'),  
+        "config_key": request.form.get('config_key', 'default_config'),
         "question": request.form.get('question'),
-        "session_id": session.get('session_id', str(uuid.uuid4())),
-        "file_content": read_file_content(request.files.get('file')) if request.files.get('file') else None
+        "session_id": session_id,
+        "file_content": file_content
     }
     app.logger.info(f"Requête reçue à /ask avec données : {data}")
     job = q.enqueue(process_ask_question, data)
-    # return jsonify({"job_id": job.get_id()}), 202
     return jsonify({"job_id": job.get_id(), "session_id": session_id}), 202
 
 def process_ask_question(data):
@@ -182,7 +182,7 @@ def process_ask_question(data):
             with open(config_path, 'r') as f:
                 gpt_configs = json.load(f)
 
-            gpt_config = gpt_configs.get(data.get('config_key'), {
+            gpt_config = gpt_configs.get(data['config_key'], {
                 "model": "gpt-3.5-turbo",
                 "temperature": 0.0,
                 "max_tokens": 500,
@@ -192,11 +192,16 @@ def process_ask_question(data):
                 "presence_penalty": 0
             })
 
-            session_id = data['session_id']
-            conversation = Conversation.query.filter_by(session_id=session_id).first()
+            # Vérifiez ou créez la conversation
+            conversation = Conversation.query.filter_by(session_id=data['session_id']).first()
             if not conversation:
-                conversation = Conversation(session_id=session_id, derniere_activite=datetime.utcnow())
+                conversation = Conversation(session_id=data['session_id'], derniere_activite=datetime.utcnow())
                 db.session.add(conversation)
+                db.session.commit()
+            
+            # Si la requête inclut un fichier, réinitialisez l'historique
+            if data.get('file_content'):
+                Message.query.filter_by(conversation_id=conversation.id).delete()
                 db.session.commit()
 
             instructions_content = gpt_config['instructions']
@@ -221,7 +226,6 @@ def process_ask_question(data):
         except Exception as e:
             app.logger.error(f"Erreur lors du traitement de la requête : {e}")
             raise
-
 
 
 
