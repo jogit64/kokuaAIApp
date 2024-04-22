@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, jsonify, session, make_response, current_app
-from openai import OpenAI
+# from openai import OpenAI
+import openai
 import os
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
@@ -18,6 +19,7 @@ from redis import Redis
 from rq import Queue
 import json
 import logging
+from pydub import AudioSegment
 
 logging.basicConfig(level=logging.INFO)
 
@@ -98,7 +100,7 @@ scheduler.start()
 
 
 def read_file_content(uploaded_file):
-    file_type = uploaded_file.filename.split('.')[-1]
+    file_type = uploaded_file.filename.split('.')[-1].lower()  # Convertir en minuscule pour assurer la cohérence
     if file_type == 'docx':
         document = Document(io.BytesIO(uploaded_file.read()))
         return "\n".join([paragraph.text for paragraph in document.paragraphs])
@@ -125,6 +127,20 @@ def read_file_content(uploaded_file):
                 if hasattr(shape, "text"):
                     text.append(shape.text)
         return "\n".join(text)
+    elif file_type == 'mp3':
+        # Traitement des fichiers MP3 pour transcription
+        audio = AudioSegment.from_file(io.BytesIO(uploaded_file.read()), format="mp3")
+        audio_bytes = io.BytesIO()
+        audio.export(audio_bytes, format="wav")  # Convertir en WAV pour Whisper
+        audio_bytes.seek(0)
+
+        # Utiliser Whisper pour la transcription
+        response = openai.Audio.transcriptions.create(
+            audio=audio_bytes,
+            model="whisper-large",
+            language="fr"
+        )
+        return response['text']
     else:
         raise ValueError("Unsupported file type")
     
