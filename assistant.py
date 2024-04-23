@@ -18,6 +18,8 @@ from redis import Redis
 from rq import Queue
 import json
 import logging
+from pydub import AudioSegment
+
 
 
 logging.basicConfig(level=logging.INFO)
