@@ -1,6 +1,5 @@
 from flask import Flask, render_template, request, jsonify, session, make_response, current_app
-# from openai import OpenAI
-import openai
+from openai import OpenAI
 import os
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
@@ -19,7 +18,7 @@ from redis import Redis
 from rq import Queue
 import json
 import logging
-from pydub import AudioSegment
+
 
 logging.basicConfig(level=logging.INFO)
 
@@ -100,7 +99,7 @@ scheduler.start()
 
 
 def read_file_content(uploaded_file):
-    file_type = uploaded_file.filename.split('.')[-1].lower()  # Convertir en minuscule pour assurer la cohérence
+    file_type = uploaded_file.filename.split('.')[-1]
     if file_type == 'docx':
         document = Document(io.BytesIO(uploaded_file.read()))
         return "\n".join([paragraph.text for paragraph in document.paragraphs])
@@ -128,6 +127,7 @@ def read_file_content(uploaded_file):
                     text.append(shape.text)
         return "\n".join(text)
     elif file_type == 'mp3':
+     try:
         # Traitement des fichiers MP3 pour transcription
         audio = AudioSegment.from_file(io.BytesIO(uploaded_file.read()), format="mp3")
         audio_bytes = io.BytesIO()
@@ -141,8 +141,12 @@ def read_file_content(uploaded_file):
             language="fr"
         )
         return response['text']
-    else:
-        raise ValueError("Unsupported file type")
+     except Exception as e:
+        logging.error(f"Failed to transcribe MP3 file: {e}")
+        raise ValueError("Failed to transcribe audio. Please check the file format and try again.")
+
+    # else:
+    #     raise ValueError("Unsupported file type")
     
 
 
