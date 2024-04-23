@@ -21,6 +21,19 @@ import logging
 from pydub import AudioSegment
 
 
+from subprocess import check_output, CalledProcessError
+
+try:
+    output = check_output(['ffmpeg', '-i', filepath, ...])
+    print("FFmpeg Output:", output.decode('utf-8'))
+    info = json.loads(output)
+except CalledProcessError as e:
+    print("FFmpeg Error:", e.output.decode('utf-8'))
+except json.JSONDecodeError as e:
+    print("JSON Decode Error:", str(e))
+
+
+
 
 logging.basicConfig(level=logging.INFO)
 
