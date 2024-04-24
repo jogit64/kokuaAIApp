@@ -2,4 +2,5 @@
 venv/
 cmdheroku.txt
 cookies.txt
+model_info.py
 
