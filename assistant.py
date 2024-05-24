@@ -118,24 +118,23 @@ def calculate_max_tokens(prompt_tokens, max_context_tokens=128000, max_output_to
 
 def read_file_content(uploaded_file):
     file_type = uploaded_file.filename.split('.')[-1]
+    content = ""
     if file_type == 'docx':
         document = Document(io.BytesIO(uploaded_file.read()))
-        return "\n".join([paragraph.text for paragraph in document.paragraphs])
+        content = "\n".join([paragraph.text for paragraph in document.paragraphs])
     elif file_type == 'pdf':
         doc = fitz.open(stream=uploaded_file.read(), filetype="pdf")
-        text = ""
         for page in doc:
-            text += page.get_text()
-        return text
+            content += page.get_text()
     elif file_type == 'txt':
-        return uploaded_file.read().decode('utf-8')
+        content = uploaded_file.read().decode('utf-8')
     elif file_type == 'xlsx':
         workbook = openpyxl.load_workbook(io.BytesIO(uploaded_file.read()))
         sheet = workbook.active
         data = []
         for row in sheet.iter_rows(values_only=True):
             data.append(' '.join([str(cell) for cell in row if cell is not None]))
-        return "\n".join(data)
+        content = "\n".join(data)
     elif file_type == 'pptx':
         ppt = Presentation(io.BytesIO(uploaded_file.read()))
         text = []
@@ -143,9 +142,12 @@ def read_file_content(uploaded_file):
             for shape in slide.shapes:
                 if hasattr(shape, "text"):
                     text.append(shape.text)
-        return "\n".join(text)
+        content = "\n".join(text)
     else:
         raise ValueError("Unsupported file type")
+
+    return content, count_tokens(content)  # Return both content and its token count
+
     
 
 
@@ -181,18 +183,18 @@ def ask_question():
     session_id = session.get('session_id', str(uuid.uuid4()))
     session['session_id'] = session_id
 
-    file_content = read_file_content(request.files['file']) if request.files.get('file') else None
+    file_content, file_tokens = read_file_content(request.files['file']) if request.files.get('file') else (None, 0)
 
     data = {
         "config_key": request.form.get('config_key', 'default_config'),
         "question": request.form.get('question'),
         "session_id": session_id,
-        "file_content": file_content
+        "file_content": file_content,
+        "file_tokens": file_tokens
     }
     app.logger.info(f"Requête reçue à /ask avec données : {data}")
     job = q.enqueue(process_ask_question, data)
     return jsonify({"job_id": job.get_id(), "session_id": session_id}), 202
-
 
 def process_ask_question(data):
     with app.app_context():
@@ -247,7 +249,7 @@ def process_ask_question(data):
             messages_for_openai = [{"role": msg.role, "content": msg.content} for msg in db_messages]
             
             # Calcul dynamique des tokens
-            total_prompt_tokens = sum(count_tokens(msg['content'], gpt_config['model']) for msg in messages_for_openai)
+            total_prompt_tokens = sum(count_tokens(msg['content'], gpt_config['model']) for msg in messages_for_openai) + data.get('file_tokens', 0)
             app.logger.info(f"Total prompt tokens calculated: {total_prompt_tokens}")
 
             max_tokens = gpt_config.get('max_tokens')
