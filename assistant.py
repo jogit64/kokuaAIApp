@@ -200,9 +200,10 @@ def process_ask_question(data):
             config_path = 'gpt_config.json'
             with open(config_path, 'r') as f:
                 gpt_configs = json.load(f)
+            app.logger.info(f"Configuration loaded for config_key: {data['config_key']}")
 
             gpt_config = gpt_configs.get(data['config_key'], {
-                "model": "gpt-4o",
+                "model": "gpt-3.5-turbo",
                 "temperature": 0.0,
                 "max_tokens": "",
                 "instructions": "Votre première réponse doit commencer par 'STAN :'",
@@ -210,6 +211,7 @@ def process_ask_question(data):
                 "frequency_penalty": 0,
                 "presence_penalty": 0
             })
+            app.logger.info(f"GPT Config: {gpt_config}")
 
             # Vérifiez ou créez la conversation
             conversation = Conversation.query.filter_by(session_id=data['session_id']).first()
@@ -217,6 +219,9 @@ def process_ask_question(data):
                 conversation = Conversation(session_id=data['session_id'], derniere_activite=datetime.utcnow())
                 db.session.add(conversation)
                 db.session.commit()
+                app.logger.info(f"New conversation created with session_id: {data['session_id']}")
+            else:
+                app.logger.info(f"Existing conversation found with session_id: {data['session_id']}")
 
             # Si la requête inclut un fichier, réinitialisez l'historique
             if data.get('file_content'):
@@ -243,15 +248,20 @@ def process_ask_question(data):
             
             # Calcul dynamique des tokens
             total_prompt_tokens = sum(count_tokens(msg['content'], gpt_config['model']) for msg in messages_for_openai)
+            app.logger.info(f"Total prompt tokens calculated: {total_prompt_tokens}")
+
             max_tokens = gpt_config.get('max_tokens')
             if not max_tokens:  # Si max_tokens est vide ou non défini
                 max_tokens = calculate_max_tokens(total_prompt_tokens)
+                app.logger.info(f"Dynamic max_tokens calculated: {max_tokens}")
             else:
                 max_tokens = int(max_tokens)  # Convertit la chaîne en entier si elle est définie
+                app.logger.info(f"Fixed max_tokens used: {max_tokens}")
 
             gpt_config['max_tokens'] = max_tokens
 
             response_html = handle_openai_request(gpt_config, messages_for_openai, conversation)
+            app.logger.info(f"OpenAI response received")
             return {"response": response_html}
         except Exception as e:
             app.logger.error(f"Erreur lors du traitement de la requête : {e}")
