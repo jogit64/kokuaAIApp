@@ -18,6 +18,7 @@ from redis import Redis
 from rq import Queue
 import json
 import logging
+import tiktoken
 
 logging.basicConfig(level=logging.INFO)
 
@@ -97,6 +98,24 @@ scheduler.start()
 
 
 
+# ! GESTION DES TOKENS AVEC TIKTOKEN -------------------
+
+def count_tokens(text, model="gpt-4"):
+    encoding = tiktoken.encoding_for_model(model)
+    tokens = encoding.encode(text)
+    return len(tokens)
+
+def calculate_max_tokens(prompt_tokens, max_context_tokens=128000, max_output_tokens=4096):
+    # Assure que la somme des tokens d'entrée et de sortie ne dépasse pas la fenêtre de contexte totale
+    return min(max_context_tokens - prompt_tokens, max_output_tokens)
+
+
+# ! FIN GESTION DES TOKENS -------------------
+
+
+
+
+
 def read_file_content(uploaded_file):
     file_type = uploaded_file.filename.split('.')[-1]
     if file_type == 'docx':
@@ -156,7 +175,6 @@ def reset_session():
 
 
 # ! mise en place de rq test
-from flask import request
 
 @app.route('/ask', methods=['POST'])
 def ask_question():
@@ -175,6 +193,7 @@ def ask_question():
     job = q.enqueue(process_ask_question, data)
     return jsonify({"job_id": job.get_id(), "session_id": session_id}), 202
 
+
 def process_ask_question(data):
     with app.app_context():
         try:
@@ -183,9 +202,9 @@ def process_ask_question(data):
                 gpt_configs = json.load(f)
 
             gpt_config = gpt_configs.get(data['config_key'], {
-                "model": "gpt-3.5-turbo",
+                "model": "gpt-4o",
                 "temperature": 0.0,
-                "max_tokens": 500,
+                "max_tokens": "",
                 "instructions": "Votre première réponse doit commencer par 'STAN :'",
                 "top_p": 0.1,
                 "frequency_penalty": 0,
@@ -198,7 +217,7 @@ def process_ask_question(data):
                 conversation = Conversation(session_id=data['session_id'], derniere_activite=datetime.utcnow())
                 db.session.add(conversation)
                 db.session.commit()
-            
+
             # Si la requête inclut un fichier, réinitialisez l'historique
             if data.get('file_content'):
                 Message.query.filter_by(conversation_id=conversation.id).delete()
@@ -221,6 +240,17 @@ def process_ask_question(data):
             # Préparation des messages pour OpenAI
             db_messages = Message.query.filter_by(conversation_id=conversation.id).all()
             messages_for_openai = [{"role": msg.role, "content": msg.content} for msg in db_messages]
+            
+            # Calcul dynamique des tokens
+            total_prompt_tokens = sum(count_tokens(msg['content'], gpt_config['model']) for msg in messages_for_openai)
+            max_tokens = gpt_config.get('max_tokens')
+            if not max_tokens:  # Si max_tokens est vide ou non défini
+                max_tokens = calculate_max_tokens(total_prompt_tokens)
+            else:
+                max_tokens = int(max_tokens)  # Convertit la chaîne en entier si elle est définie
+
+            gpt_config['max_tokens'] = max_tokens
+
             response_html = handle_openai_request(gpt_config, messages_for_openai, conversation)
             return {"response": response_html}
         except Exception as e:
