@@ -279,13 +279,13 @@ def calculate_quality_index(prompt_tokens, max_output_tokens, max_context_tokens
     ratio = prompt_tokens / available_output_tokens if available_output_tokens > 0 else float('inf')
     
     if ratio < 1:
-        quality = "High"
+        quality = "Élevée"
     elif 1 <= ratio < 5:
-        quality = "Medium"
+        quality = "Moyenne"
     elif 5 <= ratio < 10:
-        quality = "Low"
+        quality = "Faible"
     else:
-        quality = "Very Low"
+        quality = "Très faible"
     
     return quality, ratio
 
