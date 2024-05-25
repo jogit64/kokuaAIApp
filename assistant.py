@@ -98,7 +98,7 @@ scheduler.start()
 
 
 
-# ! GESTION DES TOKENS AVEC TIKTOKEN -------------------
+# ! CALCUL DES TOKENS AVEC TIKTOKEN -------------------
 
 def count_tokens(text, model="gpt-4"):
     encoding = tiktoken.encoding_for_model(model)
@@ -110,7 +110,25 @@ def calculate_max_tokens(prompt_tokens, max_context_tokens=128000, max_output_to
     return min(max_context_tokens - prompt_tokens, max_output_tokens)
 
 
-# ! FIN GESTION DES TOKENS -------------------
+
+
+def calculate_quality_index(prompt_tokens, max_output_tokens, max_context_tokens=128000):
+    available_output_tokens = min(max_context_tokens - prompt_tokens, max_output_tokens)
+    ratio = prompt_tokens / available_output_tokens if available_output_tokens > 0 else float('inf')
+    
+    if ratio < 1:
+        quality = "High"
+    elif 1 <= ratio < 5:
+        quality = "Medium"
+    elif 5 <= ratio < 10:
+        quality = "Low"
+    else:
+        quality = "Very Low"
+    
+    return quality, ratio
+
+
+# ! FIN CALCUL DES TOKENS -------------------
 
 
 
@@ -215,7 +233,6 @@ def process_ask_question(data):
             })
             app.logger.info(f"GPT Config: {gpt_config}")
 
-            # Vérifiez ou créez la conversation
             conversation = Conversation.query.filter_by(session_id=data['session_id']).first()
             if not conversation:
                 conversation = Conversation(session_id=data['session_id'], derniere_activite=datetime.utcnow())
@@ -225,7 +242,6 @@ def process_ask_question(data):
             else:
                 app.logger.info(f"Existing conversation found with session_id: {data['session_id']}")
 
-            # Si la requête inclut un fichier, réinitialisez l'historique
             if data.get('file_content'):
                 Message.query.filter_by(conversation_id=conversation.id).delete()
                 db.session.commit()
@@ -244,20 +260,18 @@ def process_ask_question(data):
 
             db.session.commit()
 
-            # Préparation des messages pour OpenAI
             db_messages = Message.query.filter_by(conversation_id=conversation.id).all()
             messages_for_openai = [{"role": msg.role, "content": msg.content} for msg in db_messages]
-            
-            # Calcul dynamique des tokens
+
             total_prompt_tokens = sum(count_tokens(msg['content'], gpt_config['model']) for msg in messages_for_openai) + data.get('file_tokens', 0)
             app.logger.info(f"Total prompt tokens calculated: {total_prompt_tokens}")
 
             max_tokens = gpt_config.get('max_tokens')
-            if not max_tokens:  # Si max_tokens est vide ou non défini
+            if not max_tokens:
                 max_tokens = calculate_max_tokens(total_prompt_tokens)
                 app.logger.info(f"Dynamic max_tokens calculated: {max_tokens}")
             else:
-                max_tokens = int(max_tokens)  # Convertit la chaîne en entier si elle est définie
+                max_tokens = int(max_tokens)
                 app.logger.info(f"Fixed max_tokens used: {max_tokens}")
 
             gpt_config['max_tokens'] = max_tokens
@@ -268,6 +282,35 @@ def process_ask_question(data):
         except Exception as e:
             app.logger.error(f"Erreur lors du traitement de la requête : {e}")
             raise
+
+
+
+
+# ! route indicateur qualité
+@app.route('/quality_index', methods=['POST'])
+def calculate_quality():
+    if 'file' not in request.files:
+        return jsonify({"error": "No file part"}), 400
+
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({"error": "No selected file"}), 400
+
+    file_content, file_tokens = read_file_content(file)
+    
+    # Définir un nombre maximum de tokens de sortie par défaut ou via une configuration simplifiée
+    max_output_tokens = 4096
+
+    total_prompt_tokens = file_tokens  # Ajoutez d'autres tokens si nécessaire (instructions, etc.)
+    
+    quality, ratio = calculate_quality_index(total_prompt_tokens, max_output_tokens)
+    return jsonify({"quality": quality, "ratio": ratio})
+
+
+# ! fin route qualité
+
+
+
 
 
 
@@ -312,25 +355,25 @@ def get_results(job_id):
         return jsonify({"error": "Job not found"}), 404
 
     if job.is_finished:
-        # Vérifiez si job.result est une chaîne ou un dictionnaire
-        if isinstance(job.result, str):
+        result_data = job.result
+        if isinstance(result_data, str):
             try:
-                result_data = json.loads(job.result)  # Désérialisation si c'est une chaîne
+                result_data = json.loads(result_data)
             except json.JSONDecodeError as e:
                 return jsonify({"status": "error", "message": "Invalid JSON data", "details": str(e)}), 500
-        elif isinstance(job.result, dict):
-            result_data = job.result  # Utilisation directe si c'est déjà un dictionnaire
-        else:
-            return jsonify({"status": "error", "message": "Unexpected data type"}), 500
-        
-        response_content = result_data.get('response') if 'response' in result_data else "No response found"
-        return jsonify({"status": "finished", "response": response_content}), 200
+
+        response_content = result_data.get('response', "No response found")
+        quality = result_data.get('quality', "Unknown")
+        ratio = result_data.get('ratio', "N/A")
+
+        return jsonify({"status": "finished", "response": response_content, "quality": quality, "ratio": ratio}), 200
 
     elif job.is_failed:
         return jsonify({"status": "failed", "error": "Job failed", "details": str(job.exc_info)}), 500
 
     else:
         return jsonify({"status": "processing"}), 202
+
 
 
 
