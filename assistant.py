@@ -98,37 +98,7 @@ scheduler.start()
 
 
 
-# ! CALCUL DES TOKENS AVEC TIKTOKEN -------------------
 
-def count_tokens(text, model="gpt-4"):
-    encoding = tiktoken.encoding_for_model(model)
-    tokens = encoding.encode(text)
-    return len(tokens)
-
-def calculate_max_tokens(prompt_tokens, max_context_tokens=128000, max_output_tokens=4096):
-    # Assure que la somme des tokens d'entrée et de sortie ne dépasse pas la fenêtre de contexte totale
-    return min(max_context_tokens - prompt_tokens, max_output_tokens)
-
-
-
-
-def calculate_quality_index(prompt_tokens, max_output_tokens, max_context_tokens=128000):
-    available_output_tokens = min(max_context_tokens - prompt_tokens, max_output_tokens)
-    ratio = prompt_tokens / available_output_tokens if available_output_tokens > 0 else float('inf')
-    
-    if ratio < 1:
-        quality = "High"
-    elif 1 <= ratio < 5:
-        quality = "Medium"
-    elif 5 <= ratio < 10:
-        quality = "Low"
-    else:
-        quality = "Very Low"
-    
-    return quality, ratio
-
-
-# ! FIN CALCUL DES TOKENS -------------------
 
 
 
@@ -286,7 +256,43 @@ def process_ask_question(data):
 
 
 
-# ! route indicateur qualité
+# ! route indicateur qualité -----------------------------------------------
+
+
+
+# ! CALCUL DES TOKENS AVEC TIKTOKEN -------------------
+
+def count_tokens(text, model="gpt-4"):
+    encoding = tiktoken.encoding_for_model(model)
+    tokens = encoding.encode(text)
+    return len(tokens)
+
+def calculate_max_tokens(prompt_tokens, max_context_tokens=128000, max_output_tokens=4096):
+    # Assure que la somme des tokens d'entrée et de sortie ne dépasse pas la fenêtre de contexte totale
+    return min(max_context_tokens - prompt_tokens, max_output_tokens)
+
+
+
+
+def calculate_quality_index(prompt_tokens, max_output_tokens, max_context_tokens=128000):
+    available_output_tokens = min(max_context_tokens - prompt_tokens, max_output_tokens)
+    ratio = prompt_tokens / available_output_tokens if available_output_tokens > 0 else float('inf')
+    
+    if ratio < 1:
+        quality = "High"
+    elif 1 <= ratio < 5:
+        quality = "Medium"
+    elif 5 <= ratio < 10:
+        quality = "Low"
+    else:
+        quality = "Very Low"
+    
+    return quality, ratio
+
+
+# ! FIN CALCUL DES TOKENS -------------------
+
+
 @app.route('/quality_index', methods=['POST'])
 def calculate_quality():
     if 'file' not in request.files:
@@ -298,16 +304,26 @@ def calculate_quality():
 
     file_content, file_tokens = read_file_content(file)
     
-    # Définir un nombre maximum de tokens de sortie par défaut ou via une configuration simplifiée
     max_output_tokens = 4096
 
     total_prompt_tokens = file_tokens  # Ajoutez d'autres tokens si nécessaire (instructions, etc.)
     
     quality, ratio = calculate_quality_index(total_prompt_tokens, max_output_tokens)
-    return jsonify({"quality": quality, "ratio": ratio})
+    
+    quality_descriptions = {
+       "Élevée": "La qualité du traitement est élevée. Le nombre de tokens d'entrée est bien dans les limites.",
+       "Moyenne": "La qualité du traitement est moyenne. Le nombre de tokens d'entrée est proche des limites.",
+       "Faible": "La qualité du traitement est faible. Le nombre de tokens d'entrée dépasse les limites recommandées.",
+       "Très faible": "La qualité du traitement est très faible. Le nombre de tokens d'entrée dépasse largement les limites recommandées."
+    }
+    
+    description = quality_descriptions.get(quality, "Qualité inconnue.")
+    
+    return jsonify({"quality": quality, "ratio": ratio, "description": description})
 
 
-# ! fin route qualité
+
+# ! fin route qualité ---------------------------------------------------------------------------
 
 
 
