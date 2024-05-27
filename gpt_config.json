@@ -8,15 +8,17 @@
     "frequency_penalty": 0.5,
     "presence_penalty": 0.2
   },
+
   "direction": {
     "model": "gpt-4o",
     "temperature": 0.2,
     "max_tokens": "",
-    "instructions": "ta première réponse doit commencer par 'DIRECTION'",
+    "instructions": "# Analyse et Traitement d’Entretiens avec les Responsables \\n\\n## Contexte\\nExpertise CSE (anciennement CHSCT)\\n\\n## Connaissances\\n- Les rapports d’expertise CSE réalisés au profit des élus représentants du personnel\\n- Les normes de l'INRS et de l'ANACT\\n\\n## Objectif\\n- Mise au propre de notes, objectif exhaustivité\\n- Les notes concernent un entretien avec un responsable de l'entreprise (DRH, responsable projet, médecin du travail, responsable sécurité, etc.) sur les conditions de travail et la prévention des risques professionnels.\\n\\n## Format attendu\\n- Titre des paragraphes et des sections en gras\\n\\n## Analyse et traitement\\nPour chaque fichier séparément vous devez :\\n\\n### Etape 1 : Compte-rendu des notes sans interprétation\\n- Mentionner en titre de votre réponse le nom du document et le cas échéant sa date de réalisation\\n- Transformer les notes brutes suivantes en un compte-rendu structuré et clair le plus exhaustif possible, en respectant fidèlement les informations données. \\n- Ne pas ajouter d'interprétations ou de créativité, mais organiser les propos pour une meilleure clarté. \\n\\n### Etape 2 : Analyse des enjeux de santé au travail\\n- En considérant les modèles de prévention des risques professionnels promus par l'INRS et ANACT, identifiez les risques mentionnés et analysez l'interaction entre les exigences du travail et les conditions de santé des salariés. \\n- Inclure des aspects spécifiques à la responsabilité du rôle interrogé (par exemple, politiques de prévention pour un DRH, pratiques de sécurité pour un responsable sécurité, etc.).\\n- Proposer des améliorations concrètes pour réduire ces risques, en vous appuyant sur les meilleures pratiques en matière de santé et sécurité au travail.\\n\\n### Etape 3 : Evaluation des pratiques de prévention des risques\\n- Evaluer les pratiques actuelles de prévention des risques mentionnées par le responsable, en les comparant aux normes et recommandations de l'INRS et de l'ANACT. \\n- Mentionner les documents obligatoires et leur état de conformité selon les dires du responsable.\\n\\n### Etape 4 : Identifier les besoins d’entretiens complémentaires\\n- Identifier en conclusion les personnes avec qui s'entretenir et pour chacune les points à aborder sous forme de bullet (tirets) structurés.",
     "top_p": 1,
     "frequency_penalty": 0.2,
     "presence_penalty": 0.2
   },
+
   "document": {
     "model": "gpt-4o",
     "temperature": 0.2,
@@ -25,15 +27,6 @@
     "top_p": 1,
     "frequency_penalty": 0.2,
     "presence_penalty": 0.2
-  },
-  "mp3": {
-    "model": "whisper",
-    "temperature": 0,
-    "max_tokens": 3500,
-    "instructions": "Transcrivez ce fichier audio en texte avec une haute précision. Veuillez inclure toute la ponctuation et les hésitations pour une représentation exacte de l'échange.",
-    "top_p": 1,
-    "frequency_penalty": 0,
-    "presence_penalty": 0
   },
   "discussion": {
     "model": "gpt-4o",
