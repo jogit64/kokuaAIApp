@@ -427,6 +427,14 @@ def ask_question_sync():
     return jsonify({"response": response_data['response'], "session_id": session_id}), 200
 
 
+# ! fonciton ping feu vert/rouge
+
+@app.route('/ping', methods=['GET'])
+def ping():
+    return jsonify({"status": "ok"}), 200
+
+
+
 if __name__ == '__main__':
     db.init_app(app)
     app.run(debug=True)
