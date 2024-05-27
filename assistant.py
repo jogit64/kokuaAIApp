@@ -219,16 +219,17 @@ def process_ask_question(data):
             instructions_content = gpt_config['instructions']
             instructions_message = Message(conversation_id=conversation.id, role="system", content=instructions_content)
             db.session.add(instructions_message)
+            db.session.commit()  # Commit after each add
 
             if data.get('question'):
                 question_message = Message(conversation_id=conversation.id, role="user", content=data['question'])
                 db.session.add(question_message)
+                db.session.commit()  # Commit after each add
 
             if data.get('file_content'):
                 file_content_message = Message(conversation_id=conversation.id, role="user", content=data['file_content'])
                 db.session.add(file_content_message)
-
-            db.session.commit()
+                db.session.commit()  # Commit after each add
 
             db_messages = Message.query.filter_by(conversation_id=conversation.id).all()
             messages_for_openai = [{"role": msg.role, "content": msg.content} for msg in db_messages]
@@ -252,6 +253,7 @@ def process_ask_question(data):
         except Exception as e:
             app.logger.error(f"Erreur lors du traitement de la requête : {e}")
             raise
+
 
 
 
