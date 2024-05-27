@@ -115,7 +115,7 @@ def read_file_content(uploaded_file):
         for page in doc:
             content += page.get_text()
     elif file_type == 'txt':
-        content = uploaded_file.read().decode('utf-8').strip()
+        content = uploaded_file.read().decode('utf-8')
     elif file_type == 'xlsx':
         workbook = openpyxl.load_workbook(io.BytesIO(uploaded_file.read()))
         sheet = workbook.active
