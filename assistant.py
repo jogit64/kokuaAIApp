@@ -31,9 +31,10 @@ app.config['SESSION_COOKIE_SECURE'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'None'
 
 # Utiliser Redis pour les sessions et les tâches en file d'attente
-redis_url = os.getenv('REDISCLOUD_URL')
+redis_url = os.getenv('REDIS_URL')
 if not redis_url:
     raise RuntimeError("REDIS_URL not set in the environment variables.")
+
 
 redis_instance = Redis.from_url(redis_url)
 
